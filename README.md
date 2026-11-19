@@ -8,7 +8,7 @@ API REST da rede de lanchonetes **Raízes do Nordeste**, desenvolvida para o **P
 
 | Item | Onde |
 |---|---|
-| Repositório | `https://github.com/<SEU-USUARIO>/raizes-nordeste-api` ← **troque pelo seu link** |
+| Repositório | https://github.com/Samueldiogo96/raizes-nordeste-api |
 | Swagger (local) | http://localhost:3000/docs (JSON: http://localhost:3000/openapi.json) |
 | Contrato OpenAPI | [`docs/openapi.yaml`](docs/openapi.yaml) |
 | Coleção Postman | [`postman/raizes-nordeste.postman_collection.json`](postman/raizes-nordeste.postman_collection.json) + [`postman/local.postman_environment.json`](postman/local.postman_environment.json) |
