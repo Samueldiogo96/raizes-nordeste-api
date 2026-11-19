@@ -56,6 +56,8 @@ npm install
 npm run setup
 ```
 
+> **Windows/PowerShell:** se aparecer o erro "a execução de scripts foi desabilitada neste sistema", use `npm.cmd` no lugar de `npm` (ex.: `npm.cmd install`, `npm.cmd run setup`, `npm.cmd run dev`).
+
 `setup` executa as **migrations** (`prisma migrate deploy`) e o **seed** (`prisma db seed`). Para voltar o banco ao estado inicial, rode `npm run setup` de novo: o seed limpa e recria os dados.
 
 ```bash

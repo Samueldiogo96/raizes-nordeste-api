@@ -4,6 +4,7 @@
   "description": "API Back-end da rede Raízes do Nordeste (Projeto Multidisciplinar - Trilha Back-end)",
   "main": "dist/server.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "build": "tsc -p tsconfig.json",
