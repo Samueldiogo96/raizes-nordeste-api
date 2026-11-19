@@ -1,0 +1,20 @@
+flowchart TB
+  classDef ext fill:#fff7e6,stroke:#b45309,color:#000
+  classDef api fill:#eef6ff,stroke:#1d4ed8,stroke-width:2px,color:#000
+  classDef app fill:#f3e8ff,stroke:#7e22ce,stroke-width:2px,color:#000
+  classDef dom fill:#dcfce7,stroke:#15803d,stroke-width:3px,color:#000
+  classDef inf fill:#f1f5f9,stroke:#334155,stroke-width:2px,color:#000
+
+  C["CANAIS: App · Totem · Web/Pick-up · Balcão/PDV · Painel da Matriz"]:::ext
+  A["API — src/api<br/>Rotas REST · Swagger /docs · JWT · RBAC por perfil<br/>Validação (zod) · Erro padronizado · requestId · Rate limit"]:::api
+  P["APPLICATION — src/application<br/>PedidoService · PagamentoService · EstoqueService · FidelidadeService<br/>AuthService · UsuarioService (LGPD) · UnidadeService · ProdutoService · GestaoService<br/>Portas (interfaces): PaymentGateway · AuditLogger"]:::app
+  D["DOMAIN — src/domain (regras puras, sem dependências)<br/>Máquina de estados do pedido · Canal x Perfil · Cálculo em centavos<br/>Fidelidade · Promoção · Disponibilidade do cardápio · Enums · Erros"]:::dom
+  I["INFRASTRUCTURE — src/infrastructure<br/>Prisma ORM + migrations (SQLite / PostgreSQL) · MockPaymentGateway<br/>PrismaAuditLogger · Logger JSON · bcrypt · JWT · config (.env)"]:::inf
+  G(["Provedor de pagamento externo"]):::ext
+
+  C -->|"HTTPS · JSON · Bearer JWT"| A
+  A -->|chama casos de uso| P
+  P -->|aplica regras| D
+  I -. "implementa as portas (inversão de dependência)" .-> P
+  I -->|"HTTP + timeout + retry"| G
+  G -. "webhook assinado" .-> A

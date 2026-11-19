@@ -1,0 +1,16 @@
+stateDiagram-v2
+  direction LR
+  [*] --> AGUARDANDO_PAGAMENTO: POST /pedidos\n(estoque reservado)
+  AGUARDANDO_PAGAMENTO --> PAGO: gateway APROVADO
+  AGUARDANDO_PAGAMENTO --> PAGAMENTO_RECUSADO: gateway RECUSADO
+  PAGAMENTO_RECUSADO --> PAGO: nova tentativa aprovada
+  PAGAMENTO_RECUSADO --> PAGAMENTO_RECUSADO: nova recusa
+  PAGO --> EM_PREPARO: Cozinha
+  EM_PREPARO --> PRONTO: Cozinha
+  PRONTO --> ENTREGUE: Atendente
+  AGUARDANDO_PAGAMENTO --> CANCELADO: Cliente/Gerente\n(devolve estoque)
+  PAGAMENTO_RECUSADO --> CANCELADO: Cliente/Gerente\n(devolve estoque)
+  PAGO --> CANCELADO: Gerente\n(estorno + devolve estoque)
+  EM_PREPARO --> CANCELADO: Gerente\n(estorno, insumo perdido)
+  ENTREGUE --> [*]
+  CANCELADO --> [*]

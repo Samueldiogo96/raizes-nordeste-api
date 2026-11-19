@@ -1,0 +1,67 @@
+﻿▶ Autenticação e autorização
+  ✔ T01 login válido retorna token JWT (85.4924ms)
+  ✔ T02 login com senha errada → 401 CREDENCIAIS_INVALIDAS (96.5034ms)
+  ✔ T03 acesso sem token → 401 (6.8633ms)
+  ✔ T04 perfil sem permissão (CLIENTE criando produto) → 403 (8.5117ms)
+  ✔ T05 gerente de outra unidade não vê estoque da unidade 1 → 403 (6.8785ms)
+✔ Autenticação e autorização (1269.0311ms)
+▶ Cardápio por unidade
+  ✔ T06 cardápio da unidade com cozinha reduzida marca cuscuz como indisponível (10.6595ms)
+✔ Cardápio por unidade (10.9065ms)
+▶ Pedido → Pagamento mock → Status (fluxo crítico)
+  ✔ T07 pedido com itens válidos → 201 AGUARDANDO_PAGAMENTO com canalPedido (22.3091ms)
+  ✔ T08 pagamento mock APROVADO → pedido PAGO + pontos creditados (55.1599ms)
+  ✔ T09 cozinha → EM_PREPARO → PRONTO; atendente → ENTREGUE (38.6004ms)
+  ✔ T10 pagamento mock RECUSADO → PAGAMENTO_RECUSADO; nova tentativa aprovada → PAGO (114.2273ms)
+  ✔ T11 gateway indisponível → 502 e pedido continua AGUARDANDO_PAGAMENTO (235.497ms)
+  ✔ T12 pagamento PENDENTE confirmado via webhook (idempotente) (79.1705ms)
+  ✔ T13 Idempotency-Key repetida não duplica o pedido (24.028ms)
+✔ Pedido → Pagamento mock → Status (fluxo crítico) (569.5894ms)
+▶ Validações e regras de negócio (cenários negativos)
+  ✔ T14 pedido sem canalPedido → 422 (4.5862ms)
+  ✔ T15 canalPedido inválido e quantidade negativa → 422 (4.1001ms)
+  ✔ T16 cadastro com e-mail inválido → 422 (3.2343ms)
+  ✔ T17 produto inexistente → 404 (12.996ms)
+  ✔ T18 unidade inexistente → 404 (4.9968ms)
+  ✔ T19 estoque insuficiente → 409 e nada é gravado (19.6175ms)
+  ✔ T20 transição de status inválida → 409 (17.1224ms)
+  ✔ T21 cozinha de reduzida: cuscuz na unidade 2 → 409 PRODUTO_INDISPONIVEL (5.8229ms)
+  ✔ T22 resgate de pontos sem consentimento → 409 CONSENTIMENTO_NECESSARIO (5.2395ms)
+  ✔ T23 cliente não vê pedido de outro cliente → 404 (19.1162ms)
+✔ Validações e regras de negócio (cenários negativos) (97.4209ms)
+▶ Multicanalidade, cancelamento, LGPD e auditoria
+  ✔ T24 filtrar pedidos por canal (?canalPedido=BALCAO) (25.9906ms)
+  ✔ T25 cancelamento devolve estoque e gera auditoria PEDIDO_CANCELADO (52.7601ms)
+  ✔ T26 atendente consulta cliente: dados mascarados + log ACESSO_DADOS_PESSOAIS (14.2952ms)
+  ✔ T27 respostas nunca expõem hash de senha (10.8952ms)
+  ✔ T28 saldo de fidelidade reflete os pontos ganhos (4.6907ms)
+  ✔ T29 gerente movimenta estoque (entrada) da própria unidade (97.5581ms)
+  ✔ T30 relatório de vendas por canal (matriz) (6.6283ms)
+✔ Multicanalidade, cancelamento, LGPD e auditoria (213.3462ms)
+▶ Domínio — máquina de estados do pedido
+  ✔ permite PAGO → EM_PREPARO → PRONTO → ENTREGUE (0.7299ms)
+  ✔ bloqueia pular etapas (AGUARDANDO_PAGAMENTO → EM_PREPARO) (0.2593ms)
+  ✔ estados finais não mudam (0.1983ms)
+  ✔ cozinha não pode marcar ENTREGUE (0.3565ms)
+  ✔ ninguém define PAGO manualmente (0.1414ms)
+✔ Domínio — máquina de estados do pedido (2.6904ms)
+▶ Domínio — multicanalidade
+  ✔ cliente não registra pedido de BALCAO (0.2715ms)
+  ✔ atendente registra BALCAO (0.1658ms)
+✔ Domínio — multicanalidade (0.733ms)
+▶ Domínio — cálculos
+  ✔ subtotal em centavos sem erro de ponto flutuante (0.2203ms)
+  ✔ consolida itens repetidos (0.7917ms)
+  ✔ pontos: 1 ponto por real, arredondado para baixo (0.2703ms)
+  ✔ resgate limitado a 50% do pedido (0.1976ms)
+  ✔ promoção fora do canal é rejeitada (0.3652ms)
+  ✔ produto que exige cozinha completa é indisponível em unidade reduzida (0.2333ms)
+✔ Domínio — cálculos (2.4276ms)
+ℹ tests 43
+ℹ suites 8
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11639.1669

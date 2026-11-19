@@ -1,0 +1,314 @@
+﻿newman
+
+Raízes do Nordeste — API (Trilha Back-end)
+
+□ 00 - Auth
+└ T01 - Login válido (cliente)
+  POST http://localhost:3000/auth/login [200 OK, 1.11kB, 163ms]
+  √  Status 200
+  √  Retorna accessToken Bearer
+  √  Não expõe hash de senha
+
+└ Login - João (cliente sem fidelidade)
+  POST http://localhost:3000/auth/login [200 OK, 1.11kB, 77ms]
+  √  Status 200
+
+└ Login - Atendente Recife
+  POST http://localhost:3000/auth/login [200 OK, 1.11kB, 87ms]
+  √  Status 200
+
+└ Login - Cozinha Recife
+  POST http://localhost:3000/auth/login [200 OK, 1.1kB, 85ms]
+  √  Status 200
+
+└ Login - Gerente Recife
+  POST http://localhost:3000/auth/login [200 OK, 1.1kB, 75ms]
+  √  Status 200
+
+└ Login - Gerente São Paulo
+  POST http://localhost:3000/auth/login [200 OK, 1.11kB, 85ms]
+  √  Status 200
+
+└ Login - Admin (matriz)
+  POST http://localhost:3000/auth/login [200 OK, 1.13kB, 87ms]
+  √  Status 200
+
+└ T02 - Login com senha inválida (401)
+  POST http://localhost:3000/auth/login [401 Unauthorized, 958B, 85ms]
+  √  Status 401
+  √  Erro padronizado: CREDENCIAIS_INVALIDAS
+
+└ Registrar cliente com consentimento (201)
+  POST http://localhost:3000/auth/registrar [201 Created, 864B, 84ms]
+  √  Status 201
+  √  Consentimento registrado
+
+└ T16 - Registrar com e-mail inválido (422)
+  POST http://localhost:3000/auth/registrar [422 Unprocessable Entity, 947B, 4ms]
+  √  Status 422
+  √  Erro padronizado: VALIDACAO_FALHOU
+  √  Aponta o campo email
+
+□ 01 - Catálogo e Cardápio
+└ Listar unidades (paginado)
+  GET http://localhost:3000/unidades?page=1&limit=10 [200 OK, 1.26kB, 8ms]
+  √  Status 200
+  √  Tem meta de paginação
+
+└ T06 - Cardápio unidade 2 (cozinha reduzida, preço regional)
+  GET http://localhost:3000/unidades/2/cardapio?incluirIndisponiveis=true [200 OK, 2.74kB, 8ms]
+  √  Status 200
+  √  Cuscuz indisponível em cozinha reduzida
+  √  Preço regional aplicado
+
+└ Listar produtos
+  GET http://localhost:3000/produtos?page=1&limit=5 [200 OK, 1.79kB, 16ms]
+  √  Status 200
+
+└ Promoções vigentes no canal APP
+  GET http://localhost:3000/promocoes?canalPedido=APP [200 OK, 1.26kB, 3ms]
+  √  Status 200
+
+□ 02 - Pedidos (fluxo principal)
+└ T07 - Criar pedido APP válido (201)
+  POST http://localhost:3000/pedidos [201 Created, 1.4kB, 24ms]
+  √  Status 201
+  √  AGUARDANDO_PAGAMENTO e canal APP
+
+└ Consultar pedido criado
+  GET http://localhost:3000/pedidos/34 [200 OK, 1.37kB, 7ms]
+  √  Status 200
+
+└ T13a - Criar pedido com Idempotency-Key (201)
+  POST http://localhost:3000/pedidos [201 Created, 1.27kB, 23ms]
+  √  Status 201
+
+└ T13b - Reenviar mesma Idempotency-Key (200, mesmo pedido)
+  POST http://localhost:3000/pedidos [200 OK, 1.27kB, 8ms]
+  √  Status 200
+  √  Mesmo pedidoId (sem duplicar)
+
+└ Criar pedido com promoção APP5 + resgate de 100 pontos
+  POST http://localhost:3000/pedidos [201 Created, 1.4kB, 19ms]
+  √  Status 201
+  √  Desconto = R$5 promo + R$5 pontos
+
+□ 03 - Pagamento mock e Status
+└ T08 - Pagamento APROVADO → pedido PAGO (201)
+  POST http://localhost:3000/pagamentos [201 Created, 1.03kB, 59ms]
+  √  Status 201
+  √  Aprovado e pedido PAGO
+  √  Pontos creditados
+
+└ T09a - Cozinha: PAGO → EM_PREPARO
+  PATCH http://localhost:3000/pedidos/34/status [200 OK, 1.71kB, 11ms]
+  √  Status 200
+  √  EM_PREPARO
+
+└ T09b - Cozinha: EM_PREPARO → PRONTO
+  PATCH http://localhost:3000/pedidos/34/status [200 OK, 1.79kB, 10ms]
+  √  Status 200
+
+└ T09c - Atendente: PRONTO → ENTREGUE
+  PATCH http://localhost:3000/pedidos/34/status [200 OK, 1.87kB, 10ms]
+  √  Status 200
+  √  Histórico completo
+
+└ T10a - Criar pedido para pagamento recusado
+  POST http://localhost:3000/pedidos [201 Created, 1.32kB, 14ms]
+  √  Status 201
+
+└ T10b - Pagamento RECUSADO → PAGAMENTO_RECUSADO (201)
+  POST http://localhost:3000/pagamentos [201 Created, 1.09kB, 55ms]
+  √  Status 201
+  √  Recusado com mensagem coerente
+
+└ T10c - Nova tentativa APROVADA → PAGO
+  POST http://localhost:3000/pagamentos [201 Created, 1.04kB, 55ms]
+  √  Status 201
+  √  PAGO
+
+└ T11a - Criar pedido para falha do gateway
+  POST http://localhost:3000/pedidos [201 Created, 1.28kB, 15ms]
+  √  Status 201
+
+└ T11b - Gateway indisponível (502, nada cobrado)
+  POST http://localhost:3000/pagamentos [502 Bad Gateway, 1.07kB, 195ms]
+  √  Status 502
+  √  Erro padronizado: GATEWAY_PAGAMENTO_INDISPONIVEL
+
+└ T11c - Pedido continua AGUARDANDO_PAGAMENTO
+  GET http://localhost:3000/pedidos/38 [200 OK, 1.43kB, 5ms]
+  √  Status 200
+  √  Status preservado
+
+└ T12a - Criar pedido para pagamento PIX pendente
+  POST http://localhost:3000/pedidos [201 Created, 1.28kB, 12ms]
+  √  Status 201
+
+└ T12b - Pagamento PENDENTE (202)
+  POST http://localhost:3000/pagamentos [202 Accepted, 1.11kB, 53ms]
+  √  Status 202
+
+└ T12c - Webhook do provedor confirma (200)
+  POST http://localhost:3000/pagamentos/webhook [200 OK, 737B, 13ms]
+  √  Status 200
+  √  Processado
+
+└ T12d - Pedido ficou PAGO após webhook
+  GET http://localhost:3000/pedidos/39 [200 OK, 1.51kB, 5ms]
+  √  Status 200
+  √  PAGO
+
+□ 04 - Erros e regras de negócio
+└ T03 - Listar pedidos sem token (401)
+  GET http://localhost:3000/pedidos [401 Unauthorized, 890B, 2ms]
+  √  Status 401
+  √  Erro padronizado: NAO_AUTENTICADO
+
+└ T04 - Cliente tenta criar produto (403)
+  POST http://localhost:3000/produtos [403 Forbidden, 885B, 3ms]
+  √  Status 403
+  √  Erro padronizado: ACESSO_NEGADO
+
+└ T05 - Gerente SP consulta estoque de Recife (403)
+  GET http://localhost:3000/unidades/1/estoque [403 Forbidden, 911B, 3ms]
+  √  Status 403
+  √  Erro padronizado: ACESSO_NEGADO
+
+└ T14 - Pedido sem canalPedido (422)
+  POST http://localhost:3000/pedidos [422 Unprocessable Entity, 991B, 4ms]
+  √  Status 422
+  √  Erro padronizado: VALIDACAO_FALHOU
+  √  Campo canalPedido
+
+└ T15 - Canal inválido e quantidade negativa (422)
+  POST http://localhost:3000/pedidos [422 Unprocessable Entity, 1.06kB, 3ms]
+  √  Status 422
+  √  Erro padronizado: VALIDACAO_FALHOU
+  √  Aponta os dois campos
+
+└ T17 - Produto inexistente (404)
+  POST http://localhost:3000/pedidos [404 Not Found, 949B, 6ms]
+  √  Status 404
+  √  Erro padronizado: PRODUTO_NAO_ENCONTRADO
+
+└ T18 - Unidade inexistente (404)
+  POST http://localhost:3000/pedidos [404 Not Found, 956B, 4ms]
+  √  Status 404
+  √  Erro padronizado: UNIDADE_NAO_ENCONTRADO
+
+└ T19 - Estoque insuficiente (409)
+  POST http://localhost:3000/pedidos [409 Conflict, 989B, 9ms]
+  √  Status 409
+  √  Erro padronizado: ESTOQUE_INSUFICIENTE
+  √  Informa o disponível
+
+└ T20 - Transição de status inválida (409)
+  PATCH http://localhost:3000/pedidos/38/status [409 Conflict, 1.07kB, 3ms]
+  √  Status 409
+  √  Erro padronizado: TRANSICAO_STATUS_INVALIDA
+
+└ T21 - Cuscuz em unidade de cozinha reduzida (409)
+  POST http://localhost:3000/pedidos [409 Conflict, 1.03kB, 5ms]
+  √  Status 409
+  √  Erro padronizado: PRODUTO_INDISPONIVEL
+
+└ T22 - Resgate de pontos sem consentimento (409)
+  POST http://localhost:3000/pedidos [409 Conflict, 930B, 17ms]
+  √  Status 409
+  √  Erro padronizado: CONSENTIMENTO_NECESSARIO
+
+└ T23 - Cliente consulta pedido de outro cliente (404)
+  GET http://localhost:3000/pedidos/34 [404 Not Found, 885B, 6ms]
+  √  Status 404
+  √  Erro padronizado: PEDIDO_NAO_ENCONTRADO
+
+□ 05 - Multicanal, LGPD, Auditoria e Gestão
+└ Atendente registra pedido de BALCÃO
+  POST http://localhost:3000/pedidos [201 Created, 1.29kB, 24ms]
+  √  Status 201
+
+└ T24 - Filtrar pedidos por canal (?canalPedido=BALCAO)
+  GET http://localhost:3000/pedidos?canalPedido=BALCAO&page=1&limit=10 [200 OK, 3.15kB, 6ms]
+  √  Status 200
+  √  Todos do canal BALCAO
+
+└ T25a - Cliente cancela pedido não pago
+  POST http://localhost:3000/pedidos/38/cancelar [200 OK, 1.53kB, 17ms]
+  √  Status 200
+  √  CANCELADO
+
+└ T25b - Auditoria registrou PEDIDO_CANCELADO
+  GET http://localhost:3000/auditoria?acao=PEDIDO_CANCELADO&entidadeId=38 [200 OK, 1.09kB, 4ms]
+  √  Status 200
+  √  Log de auditoria gerado
+
+└ Auditoria de criação de pedidos (PEDIDO_CRIADO)
+  GET http://localhost:3000/auditoria?acao=PEDIDO_CRIADO&limit=5 [200 OK, 2.26kB, 3ms]
+  √  Status 200
+
+└ T26 - Atendente consulta cliente (dados mascarados + log)
+  GET http://localhost:3000/usuarios/6 [200 OK, 1.03kB, 11ms]
+  √  Status 200
+  √  E-mail e telefone mascarados
+
+└ T27 - Exportar meus dados (portabilidade LGPD)
+  GET http://localhost:3000/usuarios/me/exportar [200 OK, 6.61kB, 11ms]
+  √  Status 200
+  √  Sem hash de senha
+
+└ Conceder consentimento FIDELIDADE (João)
+  POST http://localhost:3000/usuarios/me/consentimentos [200 OK, 1.09kB, 11ms]
+  √  Status 200
+
+└ T28 - Saldo de pontos de fidelidade
+  GET http://localhost:3000/fidelidade/saldo [200 OK, 835B, 7ms]
+  √  Status 200
+  √  Saldo > 0
+
+└ Extrato de pontos
+  GET http://localhost:3000/fidelidade/extrato [200 OK, 1.45kB, 4ms]
+  √  Status 200
+
+└ T29 - Gerente registra ENTRADA de estoque (201)
+  POST http://localhost:3000/estoque/movimentacoes [201 Created, 825B, 24ms]
+  √  Status 201
+  √  Saldo atualizado
+
+└ Saldo de estoque da unidade 1
+  GET http://localhost:3000/unidades/1/estoque [200 OK, 2.52kB, 5ms]
+  √  Status 200
+
+└ T30 - Relatório de vendas por canal (matriz)
+  GET http://localhost:3000/relatorios/vendas?agruparPor=canal [200 OK, 1.21kB, 4ms]
+  √  Status 200
+  √  Consolida por canal
+
+└ Produtos mais vendidos (gerente)
+  GET http://localhost:3000/relatorios/produtos-mais-vendidos?limite=5 [200 OK, 1.2kB, 5ms]
+  √  Status 200
+
+└ Health check
+  GET http://localhost:3000/health [200 OK, 748B, 4ms]
+  √  Status 200
+
+┌─────────────────────────┬───────────────────┬──────────────────┐
+│                         │          executed │           failed │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              iterations │                 1 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│                requests │                60 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│            test-scripts │                60 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│      prerequest-scripts │                 1 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              assertions │               105 │                0 │
+├─────────────────────────┴───────────────────┴──────────────────┤
+│ total run duration: 6.5s                                       │
+├────────────────────────────────────────────────────────────────┤
+│ total data received: 39.03kB (approx)                          │
+├────────────────────────────────────────────────────────────────┤
+│ average response time: 27ms [min: 2ms, max: 195ms, s.d.: 39ms] │
+└────────────────────────────────────────────────────────────────┘

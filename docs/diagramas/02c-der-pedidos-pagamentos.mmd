@@ -1,0 +1,69 @@
+erDiagram
+  UNIDADES ||--o{ USUARIOS : "lota funcionários"
+  UNIDADES ||--o{ PEDIDOS : "recebe"
+  USUARIOS |o--o{ PEDIDOS : "cliente (opcional)"
+  PEDIDOS ||--|{ ITENS_PEDIDO : "contém (1..n)"
+  PRODUTOS ||--o{ ITENS_PEDIDO : "vendido como"
+  PEDIDOS ||--o{ PAGAMENTOS : "tentativas (desacoplado)"
+  PEDIDOS ||--|{ HISTORICO_STATUS_PEDIDO : "rastreia"
+  PROMOCOES |o--o{ PEDIDOS : "aplicada em"
+  UNIDADES |o--o{ PROMOCOES : "restringe"
+
+  PEDIDOS {
+    int id PK
+    int unidade_id FK
+    int cliente_id FK "nullable (balcao anonimo)"
+    int operador_id FK "nullable"
+    string canal_pedido "APP|TOTEM|BALCAO|PICKUP|WEB"
+    string status
+    string forma_pagamento
+    decimal subtotal
+    decimal desconto
+    decimal total
+    int pontos_resgatados
+    int promocao_id FK "nullable"
+    string idempotency_key UK
+  }
+  ITENS_PEDIDO {
+    int id PK
+    int pedido_id FK
+    int produto_id FK
+    int quantidade "1..50"
+    decimal preco_unitario "congelado na venda"
+    decimal subtotal
+  }
+  PAGAMENTOS {
+    int id PK
+    int pedido_id FK
+    string provedor "MOCK|CAIXA_LOCAL"
+    decimal valor
+    string status "PENDENTE|APROVADO|RECUSADO|ERRO|ESTORNADO"
+    string transacao_externa_id UK
+    int tentativas
+    string resposta_gateway "JSON"
+    string idempotency_key UK
+  }
+  HISTORICO_STATUS_PEDIDO {
+    int id PK
+    int pedido_id FK
+    string status_anterior
+    string status_novo
+    int usuario_id
+    datetime criado_em
+  }
+  UNIDADES {
+    int id PK
+    string nome
+  }
+  PRODUTOS {
+    int id PK
+    string nome
+  }
+  USUARIOS {
+    int id PK
+    string perfil
+  }
+  PROMOCOES {
+    int id PK
+    string codigo UK
+  }

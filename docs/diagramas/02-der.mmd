@@ -1,0 +1,162 @@
+erDiagram
+  UNIDADES ||--o{ USUARIOS : "lota funcionários"
+  UNIDADES ||--o{ CARDAPIO_ITENS : "oferece"
+  PRODUTOS ||--o{ CARDAPIO_ITENS : "aparece em"
+  UNIDADES ||--o{ ESTOQUES : "possui estoque próprio"
+  PRODUTOS ||--o{ ESTOQUES : "estocado em"
+  UNIDADES ||--o{ MOVIMENTACOES_ESTOQUE : "registra"
+  PRODUTOS ||--o{ MOVIMENTACOES_ESTOQUE : "movimenta"
+  UNIDADES ||--o{ PEDIDOS : "recebe"
+  USUARIOS |o--o{ PEDIDOS : "cliente (opcional)"
+  PEDIDOS ||--|{ ITENS_PEDIDO : "contém (1..n)"
+  PRODUTOS ||--o{ ITENS_PEDIDO : "vendido como"
+  PEDIDOS ||--o{ PAGAMENTOS : "tentativas (desacoplado)"
+  PEDIDOS ||--|{ HISTORICO_STATUS_PEDIDO : "rastreia"
+  PEDIDOS |o--o{ MOVIMENTACOES_ESTOQUE : "origina"
+  USUARIOS ||--o{ CONSENTIMENTOS : "concede/revoga"
+  USUARIOS ||--o| CONTAS_FIDELIDADE : "participa"
+  CONTAS_FIDELIDADE ||--o{ TRANSACOES_PONTOS : "extrato"
+  PEDIDOS |o--o{ TRANSACOES_PONTOS : "gera/consome"
+  PROMOCOES |o--o{ PEDIDOS : "aplicada em"
+  UNIDADES |o--o{ PROMOCOES : "restringe"
+
+  UNIDADES {
+    int id PK
+    string nome
+    string cidade
+    string uf
+    string regiao
+    string tipo_cozinha "COMPLETA|REDUZIDA"
+    bool ativa
+  }
+  USUARIOS {
+    int id PK
+    string email UK
+    string senha_hash "bcrypt"
+    string perfil "CLIENTE|ATENDENTE|COZINHA|GERENTE|ADMIN"
+    string telefone "nullable"
+    date data_nascimento "nullable (so com consentimento)"
+    int unidade_id FK "nullable"
+    datetime anonimizado_em "nullable"
+  }
+  CONSENTIMENTOS {
+    int id PK
+    int usuario_id FK
+    string finalidade "FIDELIDADE|MARKETING"
+    bool concedido
+    string versao_termo
+    datetime registrado_em
+    datetime revogado_em "nullable"
+  }
+  PRODUTOS {
+    int id PK
+    string nome
+    string categoria
+    decimal preco_base
+    bool exige_cozinha_completa
+    bool sazonal
+    bool ativo
+  }
+  CARDAPIO_ITENS {
+    int id PK
+    int unidade_id FK "UK(unidade,produto)"
+    int produto_id FK
+    decimal preco_local "nullable = preco_base"
+    bool disponivel
+    datetime disponivel_de "janela sazonal"
+    datetime disponivel_ate
+  }
+  ESTOQUES {
+    int id PK
+    int unidade_id FK "UK(unidade,produto)"
+    int produto_id FK
+    int quantidade "CHECK >= 0 via UPDATE condicional"
+    int estoque_minimo
+  }
+  MOVIMENTACOES_ESTOQUE {
+    int id PK
+    int unidade_id FK
+    int produto_id FK
+    string tipo "ENTRADA|SAIDA|AJUSTE|ESTORNO"
+    int quantidade
+    int saldo_apos
+    int pedido_id FK "nullable"
+    int usuario_id
+  }
+  PEDIDOS {
+    int id PK
+    int unidade_id FK
+    int cliente_id FK "nullable (balcao anonimo)"
+    int operador_id FK "nullable"
+    string canal_pedido "APP|TOTEM|BALCAO|PICKUP|WEB"
+    string status
+    string forma_pagamento
+    decimal subtotal
+    decimal desconto
+    decimal total
+    int pontos_resgatados
+    int promocao_id FK "nullable"
+    string idempotency_key UK
+  }
+  ITENS_PEDIDO {
+    int id PK
+    int pedido_id FK
+    int produto_id FK
+    int quantidade "1..50"
+    decimal preco_unitario "congelado na venda"
+    decimal subtotal
+  }
+  HISTORICO_STATUS_PEDIDO {
+    int id PK
+    int pedido_id FK
+    string status_anterior
+    string status_novo
+    int usuario_id
+    datetime criado_em
+  }
+  PAGAMENTOS {
+    int id PK
+    int pedido_id FK
+    string provedor "MOCK|CAIXA_LOCAL"
+    decimal valor
+    string status "PENDENTE|APROVADO|RECUSADO|ERRO|ESTORNADO"
+    string transacao_externa_id UK
+    int tentativas
+    string resposta_gateway "JSON"
+    string idempotency_key UK
+  }
+  CONTAS_FIDELIDADE {
+    int id PK
+    int usuario_id FK "UK"
+    int saldo_pontos
+  }
+  TRANSACOES_PONTOS {
+    int id PK
+    int conta_id FK
+    string tipo "ACUMULO|RESGATE|ESTORNO"
+    int pontos
+    int pedido_id FK "nullable"
+  }
+  PROMOCOES {
+    int id PK
+    string codigo UK
+    string tipo "PERCENTUAL|VALOR_FIXO"
+    decimal valor
+    int unidade_id FK "nullable = rede"
+    string canal_pedido "nullable = todos"
+    decimal valor_minimo
+    datetime inicio
+    datetime fim
+  }
+  AUDIT_LOGS {
+    int id PK
+    string acao
+    string entidade
+    string entidade_id
+    int usuario_id
+    string perfil
+    string detalhes "JSON sem dados pessoais"
+    string ip
+    string request_id
+    datetime criado_em
+  }

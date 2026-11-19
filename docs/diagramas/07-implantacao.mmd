@@ -1,0 +1,16 @@
+flowchart LR
+  classDef n fill:#f8fafc,stroke:#334155,color:#000
+  classDef db fill:#ecfdf5,stroke:#047857,color:#000
+  classDef ext fill:#fff7e6,stroke:#b45309,color:#000
+
+  U[Apps, Totens, PDVs, Web]:::ext --> CDN[CDN / WAF<br/>TLS, proteção DDoS]:::n
+  CDN --> LB[Load Balancer<br/>health check /health]:::n
+  LB --> N1[API instância 1<br/>stateless, JWT]:::n
+  LB --> N2[API instância 2]:::n
+  LB --> N3[API instância N<br/>autoscaling no pico]:::n
+  N1 & N2 & N3 --> PGP[(PostgreSQL primário<br/>escrita)]:::db
+  PGP -. replicação .-> PGR[(Réplica de leitura<br/>relatórios / cardápio)]:::db
+  N1 & N2 & N3 -. cache .-> RC[(Redis<br/>cardápio, rate limit)]:::db
+  N1 & N2 & N3 -->|HTTPS + timeout + retry| GW[Gateway de pagamento]:::ext
+  GW -->|webhook assinado| LB
+  N1 & N2 & N3 --> OBS[Logs JSON + métricas<br/>observabilidade]:::n

@@ -1,0 +1,75 @@
+erDiagram
+  UNIDADES ||--o{ USUARIOS : "lota funcionários"
+  UNIDADES ||--o{ PEDIDOS : "recebe"
+  USUARIOS |o--o{ PEDIDOS : "cliente (opcional)"
+  USUARIOS ||--o{ CONSENTIMENTOS : "concede/revoga"
+  USUARIOS ||--o| CONTAS_FIDELIDADE : "participa"
+  CONTAS_FIDELIDADE ||--o{ TRANSACOES_PONTOS : "extrato"
+  PEDIDOS |o--o{ TRANSACOES_PONTOS : "gera/consome"
+  PROMOCOES |o--o{ PEDIDOS : "aplicada em"
+  UNIDADES |o--o{ PROMOCOES : "restringe"
+
+  USUARIOS {
+    int id PK
+    string email UK
+    string senha_hash "bcrypt"
+    string perfil "CLIENTE|ATENDENTE|COZINHA|GERENTE|ADMIN"
+    string telefone "nullable"
+    date data_nascimento "nullable (so com consentimento)"
+    int unidade_id FK "nullable"
+    datetime anonimizado_em "nullable"
+  }
+  CONSENTIMENTOS {
+    int id PK
+    int usuario_id FK
+    string finalidade "FIDELIDADE|MARKETING"
+    bool concedido
+    string versao_termo
+    datetime registrado_em
+    datetime revogado_em "nullable"
+  }
+  CONTAS_FIDELIDADE {
+    int id PK
+    int usuario_id FK "UK"
+    int saldo_pontos
+  }
+  TRANSACOES_PONTOS {
+    int id PK
+    int conta_id FK
+    string tipo "ACUMULO|RESGATE|ESTORNO"
+    int pontos
+    int pedido_id FK "nullable"
+  }
+  PROMOCOES {
+    int id PK
+    string codigo UK
+    string tipo "PERCENTUAL|VALOR_FIXO"
+    decimal valor
+    int unidade_id FK "nullable = rede"
+    string canal_pedido "nullable = todos"
+    decimal valor_minimo
+    datetime inicio
+    datetime fim
+  }
+  AUDIT_LOGS {
+    int id PK
+    string acao
+    string entidade
+    string entidade_id
+    int usuario_id
+    string perfil
+    string detalhes "JSON sem dados pessoais"
+    string ip
+    string request_id
+    datetime criado_em
+  }
+  PEDIDOS {
+    int id PK
+    int cliente_id FK
+    int promocao_id FK
+    int unidade_id FK
+  }
+  UNIDADES {
+    int id PK
+    string nome
+  }

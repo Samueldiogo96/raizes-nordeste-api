@@ -1,0 +1,137 @@
+classDiagram
+  direction LR
+  class Unidade {
+    +id: int
+    +nome: string
+    +regiao: Regiao
+    +tipoCozinha: TipoCozinha
+    +ativa: bool
+  }
+  class Usuario {
+    +id: int
+    +nome: string
+    +email: string
+    -senhaHash: string
+    +perfil: Perfil
+    +unidadeId: int?
+    +anonimizar()
+  }
+  class Consentimento {
+    +finalidade: Finalidade
+    +concedido: bool
+    +versaoTermo: string
+    +revogadoEm: Date?
+  }
+  class Produto {
+    +id: int
+    +nome: string
+    +categoria: Categoria
+    +precoBase: Decimal
+    +exigeCozinhaCompleta: bool
+    +sazonal: bool
+  }
+  class CardapioItem {
+    +precoLocal: Decimal?
+    +disponivel: bool
+    +disponivelDe: Date?
+    +disponivelAte: Date?
+    +motivoIndisponibilidade(agora) string?
+  }
+  class Estoque {
+    +quantidade: int
+    +estoqueMinimo: int
+    +reservar(qtd)
+    +devolver(qtd)
+  }
+  class Pedido {
+    +id: int
+    +canalPedido: CanalPedido
+    +status: StatusPedido
+    +subtotal: Decimal
+    +desconto: Decimal
+    +total: Decimal
+    +validarTransicao(novo)
+    +validarCancelamento(perfil)
+  }
+  class ItemPedido {
+    +quantidade: int
+    +precoUnitario: Decimal
+    +subtotal: Decimal
+  }
+  class Pagamento {
+    +status: StatusPagamento
+    +valor: Decimal
+    +transacaoExternaId: string
+    +tentativas: int
+  }
+  class ContaFidelidade {
+    +saldoPontos: int
+    +creditar(pontos)
+    +debitar(pontos)
+  }
+  class Promocao {
+    +codigo: string
+    +tipo: TipoPromocao
+    +valor: Decimal
+    +calcularDesconto(ctx) int
+  }
+  class PaymentGateway {
+    <<interface>>
+    +solicitarPagamento(req) RespostaGateway
+    +estornar(transacaoId, valor)
+  }
+  class MockPaymentGateway
+  class AuditLogger {
+    <<interface>>
+    +registrar(ctx, registro, tx)
+  }
+  class PrismaAuditLogger
+  class PedidoService {
+    +criar(ctx, input, idempotencyKey)
+    +listar(ctx, filtros)
+    +atualizarStatus(ctx, id, status)
+    +cancelar(ctx, id, motivo)
+  }
+  class PagamentoService {
+    +solicitar(ctx, input, idempotencyKey)
+    +processarWebhook(segredo, evento)
+  }
+  class StatusPedido {
+    <<enumeration>>
+    AGUARDANDO_PAGAMENTO
+    PAGAMENTO_RECUSADO
+    PAGO
+    EM_PREPARO
+    PRONTO
+    ENTREGUE
+    CANCELADO
+  }
+  class CanalPedido {
+    <<enumeration>>
+    APP
+    TOTEM
+    BALCAO
+    PICKUP
+    WEB
+  }
+
+  Unidade "1" o-- "*" CardapioItem
+  Produto "1" -- "*" CardapioItem
+  Unidade "1" o-- "*" Estoque
+  Produto "1" -- "*" Estoque
+  Usuario "1" *-- "*" Consentimento
+  Usuario "1" -- "0..1" ContaFidelidade
+  Unidade "1" -- "*" Pedido
+  Usuario "0..1" -- "*" Pedido : cliente
+  Pedido "1" *-- "1..*" ItemPedido
+  ItemPedido "*" --> "1" Produto
+  Pedido "1" -- "*" Pagamento
+  Pedido "*" --> "0..1" Promocao
+  Pedido ..> StatusPedido
+  Pedido ..> CanalPedido
+  MockPaymentGateway ..|> PaymentGateway
+  PrismaAuditLogger ..|> AuditLogger
+  PagamentoService --> PaymentGateway
+  PagamentoService --> PedidoService
+  PedidoService --> AuditLogger
+  PedidoService ..> Pedido

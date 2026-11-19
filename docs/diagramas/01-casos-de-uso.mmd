@@ -1,0 +1,58 @@
+flowchart LR
+  classDef ator fill:#fff7e6,stroke:#b45309,stroke-width:2px,color:#000
+  classDef uc fill:#eef6ff,stroke:#1d4ed8,color:#000
+  classDef critico fill:#dcfce7,stroke:#15803d,stroke-width:3px,color:#000
+  classDef nota fill:#fefce8,stroke:#a16207,color:#000
+
+  CLI(["Cliente<br/>App / Web / Totem / Pick-up"]):::ator
+  ATE(["Atendente<br/>Balcão"]):::ator
+  COZ(["Cozinha"]):::ator
+
+  subgraph SIS["Sistema Raízes do Nordeste — API Back-end"]
+    direction TB
+    N["UC02 Autenticar (JWT) é pré-condição de todos os casos, exceto UC01, UC03 e UC15"]:::nota
+    subgraph CLIENTE[" "]
+      direction TB
+      UC01("UC01 Cadastrar-se + consentimentos LGPD"):::uc
+      UC03("UC03 Consultar cardápio da unidade"):::uc
+      UC09("UC09 Consultar / resgatar pontos"):::uc
+      UC16("UC16 Exportar / anonimizar meus dados"):::uc
+      UC08("UC08 Cancelar pedido"):::uc
+    end
+    subgraph FLUXO["Fluxo crítico"]
+      direction TB
+      UC04("UC04 Realizar pedido"):::critico
+      UC05("UC05 Solicitar pagamento"):::critico
+      UC06("UC06 Acompanhar status"):::uc
+      UC07("UC07 Atualizar status: preparo / pronto / entregue"):::critico
+    end
+    subgraph GESTAO["Gestão"]
+      direction TB
+      UC10("UC10 Movimentar / consultar estoque"):::uc
+      UC11("UC11 Configurar cardápio da unidade"):::uc
+      UC12("UC12 Gerir produtos, unidades, promoções"):::uc
+      UC13("UC13 Relatórios de vendas"):::uc
+      UC14("UC14 Trilha de auditoria"):::uc
+      UC15("UC15 Confirmar pagamento via webhook"):::uc
+    end
+  end
+
+  GER(["Gerente da Unidade"]):::ator
+  ADM(["Administrador<br/>Matriz"]):::ator
+  GW(["Gateway de Pagamento<br/>sistema externo"]):::ator
+
+  CLI --- UC01 & UC03 & UC09 & UC16 & UC08 & UC04 & UC05 & UC06
+  ATE --- UC04 & UC05 & UC07
+  COZ --- UC07
+  UC04 -. "«include» reservar estoque" .-> UC10
+  UC04 -. "«extend» resgatar pontos" .-> UC09
+  UC05 -. "«include» chamada externa" .-> GW
+  UC08 --- GER
+  UC07 --- GER
+  UC10 --- GER
+  UC11 --- GER
+  UC13 --- GER
+  UC12 --- ADM
+  UC13 --- ADM
+  UC14 --- ADM
+  UC15 --- GW

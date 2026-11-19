@@ -1,0 +1,63 @@
+sequenceDiagram
+  autonumber
+  actor C as Cliente (App/Totem)
+  participant API as API (Controllers + JWT)
+  participant PS as PedidoService
+  participant D as Domínio (regras)
+  participant DB as Banco (Prisma/SQL)
+  participant PG as PagamentoService
+  participant GW as Gateway externo (Mock)
+  actor K as Cozinha
+
+  C->>API: POST /pedidos {unidadeId, canalPedido, itens, formaPagamento} + Idempotency-Key
+  API->>API: valida JWT, perfil e schema (422 se inválido)
+  API->>PS: criar(ctx, input, chave)
+  PS->>DB: chave já usada?
+  alt chave repetida
+    DB-->>PS: pedido existente
+    PS-->>API: 200 (mesmo pedido, sem duplicar)
+  else nova
+    PS->>D: validarCanalParaPerfil, cardápio, promoção, pontos
+    D-->>PS: ok / erro (404, 409, 422)
+    PS->>DB: BEGIN TRANSACTION
+    PS->>DB: INSERT pedido + itens (AGUARDANDO_PAGAMENTO)
+    PS->>DB: UPDATE estoque SET qtd = qtd - n WHERE qtd >= n
+    alt estoque insuficiente
+      DB-->>PS: 0 linhas afetadas
+      PS->>DB: ROLLBACK
+      PS-->>API: 409 ESTOQUE_INSUFICIENTE
+    else ok
+      PS->>DB: debita pontos, histórico, AUDIT PEDIDO_CRIADO
+      PS->>DB: COMMIT
+      PS-->>API: 201 pedido
+    end
+  end
+  API-->>C: resposta
+
+  C->>API: POST /pagamentos {pedidoId, tokenPagamento}
+  API->>PG: solicitar(ctx, input)
+  PG->>DB: pedido aguarda pagamento? (senão 409)
+  loop até PAYMENT_MAX_TENTATIVAS (timeout por tentativa)
+    PG->>GW: solicitarPagamento(valor, token, idempotencyKey)
+    GW-->>PG: APROVADO / RECUSADO / PENDENTE / timeout
+  end
+  alt APROVADO
+    PG->>DB: TX: pagamento APROVADO, pedido → PAGO, credita pontos, AUDIT
+    PG-->>C: 201 {status: APROVADO, statusPedido: PAGO}
+  else RECUSADO
+    PG->>DB: TX: pagamento RECUSADO, pedido → PAGAMENTO_RECUSADO, AUDIT
+    PG-->>C: 201 {status: RECUSADO, mensagem} (pode tentar de novo)
+  else PENDENTE (ex.: PIX)
+    PG->>DB: pagamento PENDENTE
+    PG-->>C: 202 aguardando confirmação
+    GW->>API: POST /pagamentos/webhook (X-Webhook-Secret)
+    API->>PG: processarWebhook → pedido PAGO (idempotente)
+  else gateway indisponível
+    PG->>DB: pagamento ERRO (pedido segue AGUARDANDO_PAGAMENTO)
+    PG-->>C: 502 GATEWAY_PAGAMENTO_INDISPONIVEL (nada cobrado)
+  end
+
+  K->>API: PATCH /pedidos/{id}/status {EM_PREPARO} → {PRONTO}
+  API->>D: validarMudancaOperacional(atual, novo, perfil)
+  API->>DB: UPDATE ... WHERE status = atual (concorrência otimista) + histórico + AUDIT
+  API-->>K: 200
