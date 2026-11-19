@@ -1,0 +1,305 @@
+// =============================================================================
+// Raízes do Nordeste — Modelo de dados (fonte única do DER)
+// Banco: SQLite (desenvolvimento/correção). Produção: PostgreSQL (trocar provider).
+// Obs.: o SQLite não possui ENUM nativo; os campos "ENUM" são String no banco e
+// validados no domínio (src/domain/enums.ts) e na entrada da API (zod).
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- Rede / Franquia
+model Unidade {
+  id          Int      @id @default(autoincrement())
+  nome        String
+  cidade      String
+  uf          String
+  regiao      String // NORDESTE | SUDESTE | SUL | CENTRO_OESTE | NORTE
+  tipoCozinha String   @map("tipo_cozinha") // COMPLETA | REDUZIDA
+  ativa       Boolean  @default(true)
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  usuarios     Usuario[]
+  cardapio     CardapioItem[]
+  estoques     Estoque[]
+  movimentacoes MovimentacaoEstoque[]
+  pedidos      Pedido[]
+  promocoes    Promocao[]
+
+  @@map("unidades")
+}
+
+// ---------------------------------------------------------------- Usuários / LGPD
+model Usuario {
+  id             Int       @id @default(autoincrement())
+  nome           String
+  email          String    @unique
+  senhaHash      String    @map("senha_hash")
+  perfil         String // CLIENTE | ATENDENTE | COZINHA | GERENTE | ADMIN
+  telefone       String?
+  dataNascimento DateTime? @map("data_nascimento") // opcional; só usado com consentimento MARKETING
+  unidadeId      Int?      @map("unidade_id") // obrigatório para funcionários
+  ativo          Boolean   @default(true)
+  anonimizadoEm  DateTime? @map("anonimizado_em")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
+
+  unidade        Unidade?          @relation(fields: [unidadeId], references: [id])
+  consentimentos Consentimento[]
+  contaFidelidade ContaFidelidade?
+  pedidos        Pedido[]          @relation("PedidoCliente")
+  pedidosCriados Pedido[]          @relation("PedidoOperador")
+
+  @@index([perfil])
+  @@map("usuarios")
+}
+
+model Consentimento {
+  id          Int       @id @default(autoincrement())
+  usuarioId   Int       @map("usuario_id")
+  finalidade  String // FIDELIDADE | MARKETING
+  concedido   Boolean
+  versaoTermo String    @map("versao_termo")
+  canal       String? // canal onde o consentimento foi dado
+  registradoEm DateTime @default(now()) @map("registrado_em")
+  revogadoEm  DateTime? @map("revogado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId, finalidade])
+  @@map("consentimentos")
+}
+
+// ---------------------------------------------------------------- Catálogo
+model Produto {
+  id                   Int      @id @default(autoincrement())
+  nome                 String
+  descricao            String?
+  categoria            String // TAPIOCA | CUSCUZ | BOLO | BEBIDA | CAFE_DA_MANHA | SALGADO
+  precoBase            Decimal  @map("preco_base")
+  exigeCozinhaCompleta Boolean  @default(false) @map("exige_cozinha_completa")
+  sazonal              Boolean  @default(false)
+  ativo                Boolean  @default(true)
+  criadoEm             DateTime @default(now()) @map("criado_em")
+
+  cardapio      CardapioItem[]
+  estoques      Estoque[]
+  movimentacoes MovimentacaoEstoque[]
+  itensPedido   ItemPedido[]
+
+  @@map("produtos")
+}
+
+// Cardápio por unidade: disponibilidade, preço regional e janela sazonal (ex.: São João)
+model CardapioItem {
+  id           Int       @id @default(autoincrement())
+  unidadeId    Int       @map("unidade_id")
+  produtoId    Int       @map("produto_id")
+  precoLocal   Decimal?  @map("preco_local") // null = usa precoBase
+  disponivel   Boolean   @default(true)
+  disponivelDe DateTime? @map("disponivel_de")
+  disponivelAte DateTime? @map("disponivel_ate")
+
+  unidade Unidade @relation(fields: [unidadeId], references: [id])
+  produto Produto @relation(fields: [produtoId], references: [id])
+
+  @@unique([unidadeId, produtoId])
+  @@map("cardapio_itens")
+}
+
+// ---------------------------------------------------------------- Estoque (por unidade)
+model Estoque {
+  id           Int      @id @default(autoincrement())
+  unidadeId    Int      @map("unidade_id")
+  produtoId    Int      @map("produto_id")
+  quantidade   Int      @default(0)
+  estoqueMinimo Int     @default(0) @map("estoque_minimo")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  unidade Unidade @relation(fields: [unidadeId], references: [id])
+  produto Produto @relation(fields: [produtoId], references: [id])
+
+  @@unique([unidadeId, produtoId])
+  @@map("estoques")
+}
+
+model MovimentacaoEstoque {
+  id         Int      @id @default(autoincrement())
+  unidadeId  Int      @map("unidade_id")
+  produtoId  Int      @map("produto_id")
+  tipo       String // ENTRADA | SAIDA | AJUSTE | ESTORNO
+  quantidade Int
+  saldoApos  Int      @map("saldo_apos")
+  motivo     String?
+  pedidoId   Int?     @map("pedido_id")
+  usuarioId  Int?     @map("usuario_id")
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  unidade Unidade @relation(fields: [unidadeId], references: [id])
+  produto Produto @relation(fields: [produtoId], references: [id])
+  pedido  Pedido? @relation(fields: [pedidoId], references: [id])
+
+  @@index([unidadeId, produtoId])
+  @@map("movimentacoes_estoque")
+}
+
+// ---------------------------------------------------------------- Pedidos
+model Pedido {
+  id               Int      @id @default(autoincrement())
+  unidadeId        Int      @map("unidade_id")
+  clienteId        Int?     @map("cliente_id") // null = venda de balcão sem identificação
+  operadorId       Int?     @map("operador_id") // atendente que registrou (BALCAO)
+  canalPedido      String   @map("canal_pedido") // APP | TOTEM | BALCAO | PICKUP | WEB
+  status           String // AGUARDANDO_PAGAMENTO | PAGAMENTO_RECUSADO | PAGO | EM_PREPARO | PRONTO | ENTREGUE | CANCELADO
+  formaPagamento   String   @map("forma_pagamento") // PIX | CARTAO_CREDITO | CARTAO_DEBITO | DINHEIRO | MOCK
+  subtotal         Decimal
+  desconto         Decimal  @default(0)
+  total            Decimal
+  pontosResgatados Int      @default(0) @map("pontos_resgatados")
+  promocaoId       Int?     @map("promocao_id")
+  observacao       String?
+  motivoCancelamento String? @map("motivo_cancelamento")
+  idempotencyKey   String?  @unique @map("idempotency_key")
+  criadoEm         DateTime @default(now()) @map("criado_em")
+  atualizadoEm     DateTime @updatedAt @map("atualizado_em")
+
+  unidade       Unidade               @relation(fields: [unidadeId], references: [id])
+  cliente       Usuario?              @relation("PedidoCliente", fields: [clienteId], references: [id])
+  operador      Usuario?              @relation("PedidoOperador", fields: [operadorId], references: [id])
+  promocao      Promocao?             @relation(fields: [promocaoId], references: [id])
+  itens         ItemPedido[]
+  pagamentos    Pagamento[]
+  historico     HistoricoStatusPedido[]
+  movimentacoes MovimentacaoEstoque[]
+  transacoesPontos TransacaoPontos[]
+
+  @@index([unidadeId, status])
+  @@index([canalPedido])
+  @@index([clienteId])
+  @@map("pedidos")
+}
+
+model ItemPedido {
+  id            Int     @id @default(autoincrement())
+  pedidoId      Int     @map("pedido_id")
+  produtoId     Int     @map("produto_id")
+  quantidade    Int
+  precoUnitario Decimal @map("preco_unitario") // preço "congelado" no momento da compra
+  subtotal      Decimal
+
+  pedido  Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto Produto @relation(fields: [produtoId], references: [id])
+
+  @@map("itens_pedido")
+}
+
+model HistoricoStatusPedido {
+  id             Int      @id @default(autoincrement())
+  pedidoId       Int      @map("pedido_id")
+  statusAnterior String?  @map("status_anterior")
+  statusNovo     String   @map("status_novo")
+  usuarioId      Int?     @map("usuario_id")
+  observacao     String?
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  pedido Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  @@index([pedidoId])
+  @@map("historico_status_pedido")
+}
+
+// ---------------------------------------------------------------- Pagamento (desacoplado)
+model Pagamento {
+  id                Int      @id @default(autoincrement())
+  pedidoId          Int      @map("pedido_id")
+  provedor          String // MOCK (gateway externo simulado)
+  metodo            String
+  valor             Decimal
+  status            String // PENDENTE | APROVADO | RECUSADO | ERRO
+  transacaoExternaId String? @unique @map("transacao_externa_id")
+  motivoRecusa      String?  @map("motivo_recusa")
+  tentativas        Int      @default(1)
+  respostaGateway   String?  @map("resposta_gateway") // payload bruto (JSON) para auditoria
+  idempotencyKey    String?  @unique @map("idempotency_key")
+  criadoEm          DateTime @default(now()) @map("criado_em")
+  atualizadoEm      DateTime @updatedAt @map("atualizado_em")
+
+  pedido Pedido @relation(fields: [pedidoId], references: [id])
+
+  @@index([pedidoId])
+  @@map("pagamentos")
+}
+
+// ---------------------------------------------------------------- Fidelização
+model ContaFidelidade {
+  id          Int      @id @default(autoincrement())
+  usuarioId   Int      @unique @map("usuario_id")
+  saldoPontos Int      @default(0) @map("saldo_pontos")
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  usuario    Usuario           @relation(fields: [usuarioId], references: [id])
+  transacoes TransacaoPontos[]
+
+  @@map("contas_fidelidade")
+}
+
+model TransacaoPontos {
+  id        Int      @id @default(autoincrement())
+  contaId   Int      @map("conta_id")
+  tipo      String // ACUMULO | RESGATE | ESTORNO
+  pontos    Int
+  pedidoId  Int?     @map("pedido_id")
+  descricao String?
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  conta  ContaFidelidade @relation(fields: [contaId], references: [id])
+  pedido Pedido?         @relation(fields: [pedidoId], references: [id])
+
+  @@index([contaId])
+  @@map("transacoes_pontos")
+}
+
+// ---------------------------------------------------------------- Promoções / Campanhas
+model Promocao {
+  id          Int      @id @default(autoincrement())
+  codigo      String   @unique
+  descricao   String
+  tipo        String // PERCENTUAL | VALOR_FIXO
+  valor       Decimal
+  unidadeId   Int?     @map("unidade_id") // null = rede inteira
+  canalPedido String?  @map("canal_pedido") // null = todos os canais
+  valorMinimo Decimal  @default(0) @map("valor_minimo")
+  inicio      DateTime
+  fim         DateTime
+  ativa       Boolean  @default(true)
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  unidade Unidade? @relation(fields: [unidadeId], references: [id])
+  pedidos Pedido[]
+
+  @@map("promocoes")
+}
+
+// ---------------------------------------------------------------- Auditoria
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  acao       String // ex.: PEDIDO_CRIADO, PEDIDO_CANCELADO, STATUS_ALTERADO, ACESSO_DADOS_PESSOAIS
+  entidade   String
+  entidadeId String?  @map("entidade_id")
+  usuarioId  Int?     @map("usuario_id")
+  perfil     String?
+  detalhes   String? // JSON sem dados pessoais
+  ip         String?
+  requestId  String?  @map("request_id")
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  @@index([acao])
+  @@index([entidade, entidadeId])
+  @@map("audit_logs")
+}
