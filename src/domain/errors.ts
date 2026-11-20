@@ -1,7 +1,6 @@
 /**
- * Erros de domínio/aplicação. Cada erro carrega o código padronizado,
- * o status HTTP e detalhes opcionais; o middleware de erro da API
- * converte isso no JSON de erro único do contrato.
+ * Erro com código, status HTTP e detalhes. O middleware de erro
+ * transforma em JSON no formato padrão da API.
  */
 export interface ErroDetalhe {
   field: string;

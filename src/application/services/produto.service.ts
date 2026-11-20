@@ -15,7 +15,7 @@ export interface ProdutoInput {
 
 const formatar = <T extends { precoBase: unknown }>(p: T) => ({ ...p, precoBase: num(p.precoBase) });
 
-/** Catálogo central da rede (padrão da franquia), mantido pela matriz (ADMIN). */
+/** Catálogo da rede, mantido pela matriz. */
 export class ProdutoService {
   constructor(private readonly audit: AuditLogger) {}
 

@@ -51,7 +51,7 @@ const includeCompleto = {
 };
 type PedidoCompleto = Prisma.PedidoGetPayload<{ include: typeof includeCompleto }>;
 
-/** Converte a entidade persistida no contrato de resposta da API (sem dados pessoais do cliente). */
+/** Monta a resposta da API, sem dados pessoais do cliente. */
 export function apresentarPedido(p: PedidoCompleto) {
   return {
     pedidoId: p.id,
@@ -94,15 +94,13 @@ export class PedidoService {
   ) {}
 
   /**
-   * FLUXO CRÍTICO — Realizar pedido.
-   * Valida canal x perfil, unidade, itens/cardápio, promoção e pontos; calcula valores;
-   * e, numa ÚNICA transação, grava pedido + itens, reserva estoque, debita pontos,
-   * registra histórico e auditoria. Qualquer falha desfaz tudo (atomicidade).
+   * Cria o pedido. Valida canal, unidade, itens, promoção e pontos, calcula o total
+   * e grava tudo numa transação: se algo falhar, nada é salvo.
    */
   async criar(ctx: Contexto, input: CriarPedidoInput, idempotencyKey?: string) {
     const { ator } = ctx;
 
-    // 0) Idempotência: o app/totem pode reenviar a mesma requisição (rede instável no pico).
+    // 0) Idempotência: o app pode reenviar a mesma requisição.
     if (idempotencyKey) {
       const existente = await prisma.pedido.findUnique({ where: { idempotencyKey }, include: includeCompleto });
       if (existente) {
@@ -114,13 +112,13 @@ export class PedidoService {
       }
     }
 
-    // 1) Canal é dado de domínio (multicanalidade) e precisa ser coerente com o perfil.
+    // 1) Canal compatível com o perfil.
     validarCanalParaPerfil(input.canalPedido, ator.perfil);
     if (input.formaPagamento === 'DINHEIRO' && input.canalPedido !== 'BALCAO') {
       throw Erros.validacao('Pagamento em dinheiro só é aceito no balcão.', [{ field: 'formaPagamento', issue: 'DINHEIRO exige canalPedido=BALCAO' }]);
     }
 
-    // 2) Quem é o cliente do pedido.
+    // 2) Cliente.
     let clienteId: number | null = null;
     if (ator.perfil === 'CLIENTE') {
       if (input.clienteId && input.clienteId !== ator.id) throw Erros.semPermissao('Um cliente não pode criar pedidos em nome de outro.');
@@ -138,7 +136,7 @@ export class PedidoService {
       throw Erros.semPermissao('Funcionários só registram pedidos na própria unidade.');
     }
 
-    // 4) Itens: existem? estão no cardápio desta unidade? qual o preço praticado?
+    // 4) Itens: existência, cardápio da unidade e preço.
     const itens = consolidarItens(input.itens);
     const produtoIds = itens.map((i) => i.produtoId);
     const [produtos, cardapio] = await Promise.all([
@@ -168,7 +166,7 @@ export class PedidoService {
     if (naoEncontrados.length) throw Erros.naoEncontrado('Produto', naoEncontrados);
     if (indisponiveis.length) throw Erros.conflito('PRODUTO_INDISPONIVEL', 'Um ou mais produtos não estão disponíveis nesta unidade.', indisponiveis);
 
-    // 5) Valores: subtotal → promoção → resgate de pontos → total.
+    // 5) Subtotal, promoção, pontos e total.
     const subtotal = calcularSubtotalCentavos(linhas);
     let descontoPromo = 0;
     let promocaoId: number | null = null;
@@ -204,7 +202,7 @@ export class PedidoService {
     const desconto = descontoPromo + descontoPontos;
     const total = Math.max(0, subtotal - desconto);
 
-    // 6) Persistência atômica.
+    // 6) Grava tudo numa transação.
     const pedido = await prisma.$transaction(async (tx) => {
       const p = await tx.pedido.create({
         data: {
@@ -254,7 +252,7 @@ export class PedidoService {
       status: f.status,
       criadoEm: f.dataInicio || f.dataFim ? { gte: f.dataInicio ? new Date(f.dataInicio) : undefined, lte: f.dataFim ? new Date(f.dataFim) : undefined } : undefined,
     };
-    // Escopo de visibilidade por perfil.
+    // Cada perfil vê só o que pode.
     if (ator.perfil === 'CLIENTE') where.clienteId = ator.id;
     else if (ator.perfil === 'ADMIN') where.unidadeId = f.unidadeId;
     else {
@@ -274,7 +272,7 @@ export class PedidoService {
     return apresentarPedido(p!);
   }
 
-  /** Atualização operacional: cozinha (EM_PREPARO, PRONTO) e balcão (ENTREGUE). */
+  /** Cozinha muda para EM_PREPARO e PRONTO; balcão, para ENTREGUE. */
   async atualizarStatus(ctx: Contexto, id: number, novo: StatusPedido, observacao?: string) {
     const p = await prisma.pedido.findUnique({ where: { id } });
     this.garantirVisibilidade(ctx, p);
@@ -290,14 +288,14 @@ export class PedidoService {
     return apresentarPedido(atualizado);
   }
 
-  /** Cancelamento (operação sensível): devolve estoque, pontos e estorna pagamento quando aplicável. */
+  /** Cancela o pedido: devolve estoque e pontos e estorna o pagamento, se houver. */
   async cancelar(ctx: Contexto, id: number, motivo: string) {
     const p = await prisma.pedido.findUnique({ where: { id }, include: { itens: true, pagamentos: true } });
     this.garantirVisibilidade(ctx, p);
     const atual = p!.status as StatusPedido;
     validarCancelamento(atual, ctx.ator.perfil);
 
-    // Estorno no gateway acontece ANTES da transação local (chamada externa não participa da transação do banco).
+    // O estorno vem antes da transação, porque a chamada externa não participa dela.
     const pagamentoAprovado = p!.pagamentos.find((pg) => pg.status === 'APROVADO');
     let estornado = false;
     if (cancelamentoExigeEstorno(atual) && pagamentoAprovado?.transacaoExternaId) {
@@ -326,10 +324,9 @@ export class PedidoService {
     return apresentarPedido(atualizado);
   }
 
-  // ------------------------------------------------------------ helpers
   /**
-   * Troca de status com controle de concorrência otimista:
-   * o UPDATE só acontece se o status no banco ainda for o que foi lido.
+   * Concorrência otimista: só atualiza se o status no banco
+   * ainda for o que foi lido.
    */
   async trocarStatus(tx: Tx, id: number, atual: StatusPedido, novo: StatusPedido, usuarioId: number | null, observacao?: string) {
     const r = await tx.pedido.updateMany({ where: { id, status: atual }, data: { status: novo } });
@@ -337,7 +334,7 @@ export class PedidoService {
     await tx.historicoStatusPedido.create({ data: { pedidoId: id, statusAnterior: atual, statusNovo: novo, usuarioId, observacao } });
   }
 
-  /** Cliente só vê os próprios pedidos; funcionário só os da sua unidade. 404 evita revelar a existência do recurso. */
+  /** Cliente vê só os próprios pedidos; funcionário, os da unidade. O 404 não revela se o pedido existe. */
   garantirVisibilidade(ctx: Contexto, p: { clienteId: number | null; unidadeId: number } | null) {
     const { ator } = ctx;
     if (!p) throw Erros.naoEncontrado('Pedido');

@@ -8,7 +8,6 @@ export const promocoesRouter = Router();
 export const relatoriosRouter = Router();
 export const auditoriaRouter = Router();
 
-// ---------------------------------------------------------------- /fidelidade
 fidelidadeRouter.use(autenticar, autorizar('CLIENTE'));
 fidelidadeRouter.get('/saldo', h(async (req, res) => {
   res.json(await services.fidelidade.saldo(ctx(req)));
@@ -17,7 +16,6 @@ fidelidadeRouter.get('/extrato', validar({ query: paginacao }), h(async (req, re
   res.json(await services.fidelidade.extrato(ctx(req), q(req)));
 }));
 
-// ---------------------------------------------------------------- /promocoes
 promocoesRouter.get('/', validar({ query: promocoesQuery }), h(async (req, res) => {
   res.json(await services.gestao.listarPromocoesVigentes(q(req)));
 }));
@@ -25,7 +23,6 @@ promocoesRouter.post('/', autenticar, autorizar('ADMIN'), validar({ body: promoc
   res.status(201).json(await services.gestao.criarPromocao(ctx(req), req.body));
 }));
 
-// ---------------------------------------------------------------- /relatorios (matriz e gerência)
 relatoriosRouter.use(autenticar, autorizar('GERENTE', 'ADMIN'));
 relatoriosRouter.get('/vendas', validar({ query: relatorioVendasQuery }), h(async (req, res) => {
   res.json(await services.gestao.relatorioVendas(ctx(req), q(req)));
@@ -34,7 +31,6 @@ relatoriosRouter.get('/produtos-mais-vendidos', validar({ query: maisVendidosQue
   res.json(await services.gestao.produtosMaisVendidos(ctx(req), q(req)));
 }));
 
-// ---------------------------------------------------------------- /auditoria (somente matriz)
 auditoriaRouter.get('/', autenticar, autorizar('ADMIN'), validar({ query: auditoriaQuery }), h(async (req, res) => {
   res.json(await services.gestao.listarAuditoria(q(req)));
 }));

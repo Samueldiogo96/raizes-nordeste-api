@@ -30,8 +30,8 @@ export class UnidadeService {
   }
 
   /**
-   * Cardápio da unidade (público): considera disponibilidade local, sazonalidade,
-   * tipo de cozinha e saldo de estoque. Preço = preço local (regional) ou preço base da rede.
+   * Cardápio da unidade: considera disponibilidade, período sazonal,
+   * tipo de cozinha e estoque. Usa o preço regional, se houver.
    */
   async cardapio(unidadeId: number, filtros: { categoria?: string; incluirIndisponiveis?: boolean }) {
     const unidade = await this.obter(unidadeId);
@@ -74,7 +74,7 @@ export class UnidadeService {
     return { unidade: { id: unidade.id, nome: unidade.nome, tipoCozinha: unidade.tipoCozinha }, itens: data };
   }
 
-  /** Gerente ajusta o cardápio da própria unidade (preço regional, disponibilidade, janela sazonal). */
+  /** Gerente ajusta preço, disponibilidade e período sazonal da unidade. */
   async configurarItemCardapio(
     ctx: Contexto,
     unidadeId: number,

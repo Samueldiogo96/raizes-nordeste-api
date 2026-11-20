@@ -1,26 +1,24 @@
 import { Perfil } from '../domain/enums';
 
 /**
- * Portas (interfaces) que a camada de aplicação usa e que a infraestrutura implementa.
- * Assim os casos de uso não dependem de um gateway de pagamento ou logger concreto
- * (Inversão de Dependência — o mock pode ser trocado por um provedor real sem mexer nas regras).
+ * Interfaces usadas pelos casos de uso e implementadas pela infraestrutura.
+ * Assim o mock de pagamento pode ser trocado sem mexer nas regras.
  */
 
-/** Quem está executando a ação (extraído do JWT). */
+/** Usuário que executa a ação (vem do JWT). */
 export interface Ator {
   id: number;
   perfil: Perfil;
   unidadeId: number | null;
 }
 
-/** Contexto técnico da requisição, usado em auditoria/rastreabilidade. */
+/** Dados da requisição usados na auditoria. */
 export interface Contexto {
   ator: Ator;
   requestId?: string;
   ip?: string;
 }
 
-// ------------------------------------------------------------------ Pagamento externo
 export interface SolicitacaoPagamento {
   pedidoId: number;
   valorCentavos: number;
@@ -43,7 +41,7 @@ export interface PaymentGateway {
   estornar(transacaoId: string, valorCentavos: number): Promise<{ estornado: boolean }>;
 }
 
-/** Erro técnico de comunicação com o gateway (timeout, 5xx). Diferente de "recusado". */
+/** Falha técnica no gateway (timeout, 5xx), diferente de pagamento recusado. */
 export class GatewayIndisponivelError extends Error {
   constructor(message: string) {
     super(message);
@@ -51,7 +49,6 @@ export class GatewayIndisponivelError extends Error {
   }
 }
 
-// ------------------------------------------------------------------ Auditoria
 export interface RegistroAuditoria {
   acao: string;
   entidade: string;

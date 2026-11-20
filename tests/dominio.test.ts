@@ -1,5 +1,5 @@
 /**
- * Testes UNITÁRIOS das regras de domínio (sem banco, sem HTTP).
+ * Testes unitários das regras de domínio (sem banco e sem HTTP).
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';

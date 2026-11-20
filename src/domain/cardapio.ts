@@ -1,10 +1,7 @@
 /**
- * Regras de disponibilidade de um produto no cardápio de uma unidade.
- * Um produto só pode ser vendido se:
- *  - o produto está ativo na rede;
- *  - está marcado como disponível no cardápio daquela unidade;
- *  - a data atual está dentro da janela sazonal (ex.: itens juninos);
- *  - a unidade tem cozinha COMPLETA quando o produto exige.
+ * Um produto só pode ser vendido na unidade se estiver ativo, disponível
+ * no cardápio dela, dentro do período sazonal (se houver) e, quando exigir,
+ * se a unidade tiver cozinha completa.
  */
 export interface ItemCardapioRegra {
   produtoAtivo: boolean;

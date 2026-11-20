@@ -6,9 +6,8 @@ import { mascararEmail, mascararTelefone, senhas } from '../../infrastructure/se
 import { AuditLogger, Contexto } from '../ports';
 
 /**
- * Casos de uso de usuário com foco em LGPD:
- * acesso aos próprios dados, portabilidade (exportação), gestão de consentimento,
- * anonimização (direito de eliminação) e acesso mascarado + auditado por funcionários.
+ * Usuários e LGPD: dados próprios, exportação, consentimentos,
+ * anonimização e consulta mascarada por funcionários.
  */
 export class UsuarioService {
   constructor(private readonly audit: AuditLogger) {}
@@ -50,7 +49,7 @@ export class UsuarioService {
     return { id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, unidadeId: u.unidadeId, criadoEm: u.criadoEm };
   }
 
-  /** Dados do próprio titular (sem hash de senha). */
+  /** Dados do próprio usuário, sem o hash da senha. */
   async meusDados(ctx: Contexto) {
     const u = await prisma.usuario.findUnique({
       where: { id: ctx.ator.id },
@@ -71,7 +70,7 @@ export class UsuarioService {
     };
   }
 
-  /** Portabilidade (LGPD art. 18, V): exporta tudo que a empresa guarda sobre o titular. */
+  /** Exporta todos os dados guardados sobre o usuário (portabilidade). */
   async exportarMeusDados(ctx: Contexto) {
     const dados = await prisma.usuario.findUnique({
       where: { id: ctx.ator.id },
@@ -89,7 +88,7 @@ export class UsuarioService {
   async registrarConsentimento(ctx: Contexto, finalidade: FinalidadeConsentimento, concedido: boolean, canal?: string) {
     const usuarioId = ctx.ator.id;
     await prisma.$transaction(async (tx) => {
-      // Revoga o registro vigente (histórico é preservado para prova de consentimento).
+      // Revoga o consentimento atual e mantém o histórico.
       await tx.consentimento.updateMany({
         where: { usuarioId, finalidade, revogadoEm: null },
         data: { revogadoEm: new Date() },
@@ -101,7 +100,7 @@ export class UsuarioService {
         await tx.contaFidelidade.upsert({ where: { usuarioId }, create: { usuarioId }, update: {} });
       }
       if (finalidade === 'MARKETING' && !concedido) {
-        // Sem finalidade, o dado deixa de ser necessário: apaga data de nascimento.
+        // Sem marketing, a data de nascimento deixa de ser necessária.
         await tx.usuario.update({ where: { id: usuarioId }, data: { dataNascimento: null } });
       }
       await this.audit.registrar(ctx, { acao: concedido ? 'CONSENTIMENTO_CONCEDIDO' : 'CONSENTIMENTO_REVOGADO', entidade: 'Usuario', entidadeId: usuarioId, detalhes: { finalidade, versaoTermo: VERSAO_TERMO_ATUAL } }, tx);
@@ -110,9 +109,8 @@ export class UsuarioService {
   }
 
   /**
-   * Direito de eliminação: os dados pessoais são ANONIMIZADOS (não apagados),
-   * porque pedidos/notas precisam ser mantidos por obrigação fiscal (5 anos).
-   * O vínculo pessoa ↔ pedidos deixa de ser identificável.
+   * Anonimiza os dados pessoais em vez de apagar, porque os pedidos
+   * precisam ser guardados por obrigação fiscal.
    */
   async anonimizarMinhaConta(ctx: Contexto) {
     const id = ctx.ator.id;
@@ -135,7 +133,7 @@ export class UsuarioService {
     });
   }
 
-  /** Consulta de cliente por funcionário (ex.: atendimento): dados MASCARADOS e acesso AUDITADO. */
+  /** Funcionário consulta cliente: dados mascarados e acesso registrado na auditoria. */
   async buscarPorId(ctx: Contexto, id: number) {
     const u = await prisma.usuario.findUnique({ where: { id }, include: { consentimentos: true, contaFidelidade: true } });
     if (!u) throw Erros.naoEncontrado('Usuario');

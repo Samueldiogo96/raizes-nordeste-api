@@ -17,8 +17,7 @@ export function metaPaginacao(page: number, limit: number, total: number) {
 }
 
 /**
- * Escopo por unidade (multiunidade/franquia):
- * ADMIN (matriz) acessa todas; funcionários só a própria unidade.
+ * ADMIN acessa todas as unidades; funcionários, só a própria.
  */
 export function garantirAcessoUnidade(ator: Ator, unidadeId: number): void {
   if (ator.perfil === 'ADMIN') return;

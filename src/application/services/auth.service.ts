@@ -20,7 +20,7 @@ export interface RegistrarClienteInput {
 export class AuthService {
   constructor(private readonly audit: AuditLogger) {}
 
-  /** Cadastro público de CLIENTE (App/Web/Totem), já registrando os consentimentos LGPD. */
+  /** Cadastro de cliente com os consentimentos escolhidos. */
   async registrarCliente(input: RegistrarClienteInput) {
     const email = input.email.toLowerCase().trim();
     const existe = await prisma.usuario.findUnique({ where: { email } });
@@ -40,8 +40,7 @@ export class AuthService {
           senhaHash,
           perfil: 'CLIENTE',
           telefone: input.telefone ?? null,
-          // Minimização (LGPD): data de nascimento só é guardada se houver consentimento de MARKETING,
-          // pois só é usada em campanhas segmentadas por faixa etária.
+          // Data de nascimento só serve para campanhas: exige consentimento de marketing.
           dataNascimento:
             input.consentimentoMarketing && input.dataNascimento ? new Date(input.dataNascimento) : null,
         },
@@ -80,7 +79,7 @@ export class AuthService {
 
   async login(email: string, senha: string, ip?: string) {
     const usuario = await prisma.usuario.findUnique({ where: { email: email.toLowerCase().trim() } });
-    // Mesma mensagem para "e-mail não existe" e "senha errada": evita enumeração de contas.
+    // Mesma mensagem nos dois casos para não revelar quais e-mails existem.
     const ok = usuario && usuario.ativo && (await senhas.comparar(senha, usuario.senhaHash));
     if (!usuario || !ok) {
       logger.warn('login_falhou', { ip, usuarioId: usuario?.id ?? null });

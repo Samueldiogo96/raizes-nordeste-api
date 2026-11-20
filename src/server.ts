@@ -10,7 +10,7 @@ const server = app.listen(config.port, () => {
   console.log(`  Swagger (documentação):  http://localhost:${config.port}/docs\n`);
 });
 
-// Encerramento gracioso: termina requisições em andamento antes de desligar (deploys sem derrubar pedidos).
+// Encerra as requisições em andamento antes de desligar.
 for (const sinal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sinal, () => {
     logger.info('api_encerrando', { sinal });

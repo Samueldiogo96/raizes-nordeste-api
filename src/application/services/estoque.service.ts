@@ -5,8 +5,7 @@ import { garantirAcessoUnidade, metaPaginacao, paginar, Paginacao } from '../com
 import { AuditLogger, Contexto } from '../ports';
 
 /**
- * Estoque POR UNIDADE. Toda alteração gera uma linha em movimentacoes_estoque
- * (rastreabilidade: quem, quando, quanto, por quê, saldo resultante).
+ * Estoque por unidade. Toda alteração fica registrada em movimentacoes_estoque.
  */
 export class EstoqueService {
   constructor(private readonly audit: AuditLogger) {}
@@ -92,11 +91,10 @@ export class EstoqueService {
     return { data, meta: metaPaginacao(page, limit, total) };
   }
 
-  // ------------------------------------------------------------ usados pelo fluxo de pedido
   /**
-   * Reserva (baixa) o estoque dos itens dentro da transação do pedido.
-   * O UPDATE é condicional (WHERE quantidade >= solicitada), operação atômica no banco:
-   * dois pedidos simultâneos no horário de pico não conseguem vender a mesma última unidade.
+   * Baixa o estoque dentro da transação do pedido. O UPDATE só ocorre
+   * se houver quantidade suficiente, então dois pedidos simultâneos
+   * não vendem a mesma última unidade.
    */
   static async reservar(tx: Tx, unidadeId: number, itens: { produtoId: number; quantidade: number }[], pedidoId: number, usuarioId: number) {
     const faltas: ErroDetalhe[] = [];
@@ -116,7 +114,7 @@ export class EstoqueService {
       });
     }
     if (faltas.length) {
-      // Lançar o erro dentro da transação faz o ROLLBACK de tudo (pedido, itens e baixas).
+      // O erro desfaz toda a transação.
       throw Erros.conflito('ESTOQUE_INSUFICIENTE', 'Não há quantidade suficiente para um ou mais itens.', faltas);
     }
   }

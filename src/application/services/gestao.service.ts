@@ -5,11 +5,10 @@ import { AuditLogger, Contexto } from '../ports';
 
 const STATUS_VENDA_EFETIVADA = ['PAGO', 'EM_PREPARO', 'PRONTO', 'ENTREGUE'];
 
-/** Promoções, relatórios gerenciais (matriz/unidade) e consulta da trilha de auditoria. */
+/** Promoções, relatórios e auditoria. */
 export class GestaoService {
   constructor(private readonly audit: AuditLogger) {}
 
-  // ------------------------------------------------------------ Promoções
   async listarPromocoesVigentes(f: { unidadeId?: number; canalPedido?: string }) {
     const agora = new Date();
     const lista = await prisma.promocao.findMany({
@@ -37,11 +36,9 @@ export class GestaoService {
     return { ...p, valor: num(p.valor), valorMinimo: num(p.valorMinimo) };
   }
 
-  // ------------------------------------------------------------ Relatórios
   /**
-   * Vendas consolidadas por unidade, região, canal ou dia. Gerente vê apenas a própria unidade;
-   * a matriz (ADMIN) vê a rede inteira. Em produção, rodaria numa réplica de leitura / data warehouse
-   * para não competir com o fluxo de pedidos no horário de pico.
+   * Vendas por unidade, região, canal ou dia. Gerente vê só a própria unidade.
+   * Em produção, o ideal é rodar numa réplica de leitura.
    */
   async relatorioVendas(ctx: Contexto, f: { agruparPor: 'unidade' | 'regiao' | 'canal' | 'dia'; dataInicio?: string; dataFim?: string; unidadeId?: number }) {
     const unidadeId = ctx.ator.perfil === 'ADMIN' ? f.unidadeId : ctx.ator.unidadeId!;
@@ -93,7 +90,6 @@ export class GestaoService {
     }));
   }
 
-  // ------------------------------------------------------------ Auditoria
   async listarAuditoria(f: Partial<Paginacao> & { acao?: string; entidade?: string; entidadeId?: string; usuarioId?: number }) {
     const { page, limit, skip, take } = paginar(f);
     const where = { acao: f.acao, entidade: f.entidade, entidadeId: f.entidadeId, usuarioId: f.usuarioId };

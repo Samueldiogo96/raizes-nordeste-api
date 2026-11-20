@@ -7,18 +7,17 @@ import {
 } from '../../application/ports';
 
 /**
- * Gateway de pagamento SIMULADO (mock / "dublê" do provedor real).
- * O resultado é determinado pelo tokenPagamento enviado pelo cliente,
- * permitindo testar todos os cenários de forma reproduzível:
+ * Gateway de pagamento simulado.
+ * O resultado depende do tokenPagamento:
  *
  *  tok_aprovado        → APROVADO (código 00)
  *  tok_recusado        → RECUSADO por saldo insuficiente (código 51)
  *  tok_cartao_bloqueado→ RECUSADO cartão bloqueado (código 62)
- *  tok_pendente        → PENDENTE (confirmação chega depois via webhook — ex.: PIX)
+ *  tok_pendente        → PENDENTE (confirmado depois pelo webhook)
  *  tok_falha_gateway   → lança GatewayIndisponivelError (simula timeout/5xx)
- *  qualquer outro      → APROVADO (comportamento padrão de sandbox)
+ *  qualquer outro      → APROVADO
  *
- * Idempotência: a mesma idempotencyKey devolve a mesma resposta (como provedores reais).
+ * A mesma idempotencyKey devolve a mesma resposta.
  */
 export class MockPaymentGateway implements PaymentGateway {
   readonly nome = 'MOCK';

@@ -1,9 +1,8 @@
 import { config } from './config';
 
 /**
- * Logger estruturado (JSON por linha). Em produção esses logs seriam enviados
- * para uma ferramenta de observabilidade (ex.: ELK, Datadog, CloudWatch).
- * Nunca registrar senha, token, e-mail completo ou dados de pagamento.
+ * Log em JSON, uma linha por evento.
+ * Não registrar senha, token, e-mail completo nem dados de pagamento.
  */
 type Nivel = 'info' | 'warn' | 'error';
 

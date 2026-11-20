@@ -9,8 +9,7 @@ export const authRouter = Router();
 export const usuariosRouter = Router();
 
 /**
- * Proteção contra força bruta no login: no máximo 5 tentativas FALHAS por minuto
- * para a mesma combinação IP + e-mail (logins bem-sucedidos não contam).
+ * Limite de 5 logins errados por minuto para o mesmo IP + e-mail.
  */
 const limiteLogin = rateLimit({
   windowMs: 60_000,
@@ -22,7 +21,6 @@ const limiteLogin = rateLimit({
   handler: (_req, _res, next) => next({ status: 429 }),
 });
 
-// ---------------------------------------------------------------- /auth
 authRouter.post('/registrar', validar({ body: registrarSchema }), h(async (req, res) => {
   res.status(201).json(await services.auth.registrarCliente(req.body));
 }));
@@ -31,7 +29,6 @@ authRouter.post('/login', limiteLogin, validar({ body: loginSchema }), h(async (
   res.json(await services.auth.login(req.body.email, req.body.senha, req.ip));
 }));
 
-// ---------------------------------------------------------------- /usuarios
 usuariosRouter.use(autenticar);
 
 usuariosRouter.get('/me', h(async (req, res) => {

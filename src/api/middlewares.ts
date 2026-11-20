@@ -17,14 +17,14 @@ declare global {
   }
 }
 
-/** Correlation ID: cada requisição recebe um id (ou reaproveita o X-Request-Id do cliente). */
+/** Gera um id por requisição (ou usa o X-Request-Id recebido). */
 export const requestId: RequestHandler = (req, res, next) => {
   const id = (req.header('x-request-id') ?? '').slice(0, 64) || randomUUID();
   req.requestId = id;
   res.setHeader('X-Request-Id', id);
   const inicio = Date.now();
   res.on('finish', () => {
-    // Log de acesso: sem corpo da requisição (pode conter senha/dados pessoais).
+    // Não loga o corpo: pode ter senha ou dados pessoais.
     logger.info('http', { metodo: req.method, rota: req.originalUrl.split('?')[0], status: res.statusCode, ms: Date.now() - inicio, requestId: id, usuarioId: req.ctx?.ator.id });
   });
   next();
@@ -44,7 +44,7 @@ export const autenticar: RequestHandler = (req, _res, next) => {
   }
 };
 
-/** Autorização por perfil (RBAC). Usar sempre depois de autenticar. */
+/** Restringe a rota a alguns perfis. */
 export const autorizar = (...perfis: Perfil[]): RequestHandler => (req, _res, next) => {
   if (!req.ctx) return next(Erros.naoAutenticado());
   if (!perfis.includes(req.ctx.ator.perfil)) {
@@ -53,7 +53,7 @@ export const autorizar = (...perfis: Perfil[]): RequestHandler => (req, _res, ne
   next();
 };
 
-/** Valida body/query/params com zod e substitui pelos valores já convertidos. */
+/** Valida body, query e params com zod. */
 export const validar = (schemas: { body?: ZodSchema; query?: ZodSchema; params?: ZodSchema }): RequestHandler => (req, _res, next) => {
   try {
     if (schemas.params) req.params = schemas.params.parse(req.params);
@@ -67,7 +67,7 @@ export const validar = (schemas: { body?: ZodSchema; query?: ZodSchema; params?:
 
 export const q = <T>(req: Request): T => (req as unknown as { validQuery: T }).validQuery;
 
-/** Envolve handlers async para que erros cheguem ao middleware de erro. */
+/** Repassa erros de handlers async ao middleware de erro. */
 export const h = (fn: (req: Request, res: Response) => Promise<unknown>): RequestHandler => (req, res, next) => {
   fn(req, res).catch(next);
 };
@@ -80,9 +80,9 @@ export const rotaNaoEncontrada: RequestHandler = (req, _res, next) => {
 };
 
 /**
- * Tratamento de erros CENTRALIZADO → um único formato JSON para todas as falhas:
+ * Converte qualquer erro no formato padrão:
  * { error, message, details[], timestamp, path, requestId }
- * Erros inesperados viram 500 genérico (sem stack trace para o cliente).
+ * Erros inesperados viram 500, sem expor o stack trace.
  */
 export function tratarErros(err: unknown, req: Request, res: Response, _next: NextFunction) {
   let erro: AppError;

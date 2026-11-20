@@ -16,15 +16,15 @@ export interface SolicitarPagamentoInput {
 }
 
 /**
- * Integração DESACOPLADA com o provedor de pagamento.
- * O sistema NÃO processa cartão/PIX: apenas (1) solicita, (2) recebe aprovação/recusa,
- * (3) registra o resultado e (4) atualiza o status do pedido.
+ * Integração com o gateway de pagamento externo.
+ * O sistema não processa cartão nem PIX: só solicita, recebe a resposta,
+ * registra o resultado e atualiza o pedido.
  *
- * Tolerância a falhas:
- *  - timeout por tentativa + retentativa com backoff (config PAYMENT_TIMEOUT_MS / PAYMENT_MAX_TENTATIVAS);
- *  - falha técnica (gateway fora) ≠ recusa: o pedido continua AGUARDANDO_PAGAMENTO e pode ser repago;
- *  - Idempotency-Key: o reenvio da mesma requisição não gera cobrança duplicada;
- *  - resultado assíncrono (PENDENTE) confirmado depois via webhook autenticado.
+ * Em caso de falha:
+ *  - timeout e nova tentativa (PAYMENT_TIMEOUT_MS, PAYMENT_MAX_TENTATIVAS);
+ *  - gateway fora do ar não é recusa: o pedido continua aguardando pagamento;
+ *  - a Idempotency-Key evita cobrança duplicada;
+ *  - pagamento PENDENTE é confirmado depois pelo webhook.
  */
 export class PagamentoService {
   constructor(
@@ -34,7 +34,7 @@ export class PagamentoService {
   ) {}
 
   async solicitar(ctx: Contexto, input: SolicitarPagamentoInput, idempotencyKey?: string) {
-    // Idempotência: mesma chave → devolve o pagamento já registrado, sem chamar o gateway de novo.
+    // Mesma chave: devolve o pagamento já registrado.
     if (idempotencyKey) {
       const existente = await prisma.pagamento.findUnique({ where: { idempotencyKey }, include: { pedido: true } });
       if (existente) {
@@ -58,7 +58,7 @@ export class PagamentoService {
     const chave = idempotencyKey ?? `pedido-${p.id}-tentativa-${p.pagamentos.length + 1}`;
     const valorCentavos = paraCentavos(p.total);
 
-    // Dinheiro no balcão: não passa pelo gateway; o atendente confirma o recebimento.
+    // Dinheiro no balcão não passa pelo gateway.
     if (p.formaPagamento === 'DINHEIRO') {
       if (!['ATENDENTE', 'GERENTE', 'ADMIN'].includes(ctx.ator.perfil)) throw Erros.semPermissao('Pagamento em dinheiro é confirmado pelo atendente.');
       const resposta: RespostaGateway = { status: 'APROVADO', transacaoId: `caixa_${p.id}_${Date.now()}`, codigoRetorno: 'CAIXA', processadoEm: new Date().toISOString() };
@@ -69,7 +69,7 @@ export class PagamentoService {
       throw Erros.validacao('tokenPagamento é obrigatório para pagamentos eletrônicos.', [{ field: 'tokenPagamento', issue: 'Obrigatório' }]);
     }
 
-    // Chamada ao gateway com timeout + retentativa (backoff linear).
+    // Timeout e nova tentativa com espera crescente.
     let tentativas = 0;
     let resposta: RespostaGateway | null = null;
     let ultimoErro = '';
@@ -88,7 +88,7 @@ export class PagamentoService {
     }
 
     if (!resposta) {
-      // Falha técnica: registra a tentativa com status ERRO, pedido permanece aguardando pagamento.
+      // Registra a tentativa como ERRO; o pedido continua aguardando.
       const pg = await prisma.pagamento.create({
         data: { pedidoId: p.id, provedor: this.gateway.nome, metodo: p.formaPagamento, valor: num(p.total), status: 'ERRO', tentativas, motivoRecusa: ultimoErro, idempotencyKey: chave },
       });
@@ -101,7 +101,7 @@ export class PagamentoService {
     return this.registrarResultado(ctx, p.id, statusAtual, this.gateway.nome, p.formaPagamento, valorCentavos, chave, resposta, tentativas);
   }
 
-  /** Webhook do provedor (confirmação assíncrona, ex.: PIX). Autenticado por segredo compartilhado. */
+  /** Confirmação assíncrona do gateway (ex.: PIX). */
   async processarWebhook(segredo: string | undefined, evento: { transacaoId: string; status: 'APROVADO' | 'RECUSADO'; motivo?: string }) {
     const esperado = Buffer.from(config.webhookSecret);
     const recebido = Buffer.from(segredo ?? '');
@@ -111,7 +111,7 @@ export class PagamentoService {
     const pg = await prisma.pagamento.findUnique({ where: { transacaoExternaId: evento.transacaoId }, include: { pedido: true } });
     if (!pg) throw Erros.naoEncontrado('Pagamento');
     if (pg.status !== 'PENDENTE') {
-      // Webhooks podem chegar repetidos: processamento idempotente.
+      // O webhook pode chegar repetido.
       return { pagamentoId: pg.id, status: pg.status, processado: false, mensagem: 'Evento já processado anteriormente.' };
     }
     const statusPedido = pg.pedido.status as StatusPedido;
@@ -130,7 +130,6 @@ export class PagamentoService {
     return this.apresentar(pg, pg.pedido.status);
   }
 
-  // ------------------------------------------------------------ internos
   private async registrarResultado(
     ctx: Contexto, pedidoId: number, statusAtual: StatusPedido, provedor: string, metodo: string,
     valorCentavos: number, chave: string, resposta: RespostaGateway, tentativas: number,

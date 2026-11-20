@@ -1,8 +1,6 @@
 /**
- * Composição (injeção de dependências manual).
- * É aqui — e só aqui — que as implementações concretas da infraestrutura
- * são "plugadas" nos casos de uso. Trocar o MockPaymentGateway por um provedor
- * real (ex.: Stripe, Mercado Pago, Cielo) significa mudar uma linha.
+ * Injeção de dependências: liga a infraestrutura aos casos de uso.
+ * Para usar um gateway de pagamento real, basta trocar o mock aqui.
  */
 import { AuthService } from './application/services/auth.service';
 import { EstoqueService } from './application/services/estoque.service';

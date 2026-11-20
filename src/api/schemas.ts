@@ -4,7 +4,7 @@ import {
   REGIOES, STATUS_PEDIDO, TIPOS_COZINHA, TIPOS_MOVIMENTACAO, TIPOS_PROMOCAO,
 } from '../domain/enums';
 
-/** Contratos de entrada (DTOs) validados na borda da API. */
+/** Schemas de validação das entradas da API. */
 
 const msgEnum = (valores: readonly string[]) => ({
   errorMap: (_issue: z.ZodIssueOptionalMessage, ctx: { data: unknown }) => ({
@@ -29,7 +29,6 @@ const senhaForte = z
   .regex(/[A-Za-z]/, 'Deve conter letras')
   .regex(/\d/, 'Deve conter números');
 
-// ------------------------------------------------------------------ Auth / Usuários
 export const registrarSchema = z.object({
   nome: z.string({ required_error: 'Campo obrigatório' }).trim().min(2).max(120),
   email: z.string({ required_error: 'Campo obrigatório' }).email('E-mail inválido'),
@@ -60,7 +59,6 @@ export const consentimentoSchema = z.object({
   canal: enumz(CANAIS_PEDIDO).optional(),
 });
 
-// ------------------------------------------------------------------ Unidades / Produtos
 export const unidadeSchema = z.object({
   nome: z.string().trim().min(2),
   cidade: z.string().trim().min(2),
@@ -93,7 +91,6 @@ export const produtoSchema = z.object({
 });
 export const listarProdutosQuery = paginacao.extend({ categoria: enumz(CATEGORIAS_PRODUTO).optional(), busca: z.string().max(60).optional() });
 
-// ------------------------------------------------------------------ Estoque
 export const movimentacaoSchema = z.object({
   unidadeId: z.number({ required_error: 'Campo obrigatório' }).int().positive(),
   produtoId: z.number({ required_error: 'Campo obrigatório' }).int().positive(),
@@ -108,7 +105,6 @@ export const movimentacoesQuery = paginacao.extend({
   tipo: enumz(TIPOS_MOVIMENTACAO).optional(),
 });
 
-// ------------------------------------------------------------------ Pedidos
 export const criarPedidoSchema = z.object({
   unidadeId: z.number({ required_error: 'Campo obrigatório' }).int().positive(),
   canalPedido: enumz(CANAIS_PEDIDO),
@@ -143,7 +139,6 @@ export const cancelarSchema = z.object({
   motivo: z.string({ required_error: 'Informe o motivo do cancelamento' }).trim().min(5, 'Motivo deve ter ao menos 5 caracteres').max(300),
 });
 
-// ------------------------------------------------------------------ Pagamentos
 export const pagamentoSchema = z.object({
   pedidoId: z.number({ required_error: 'Campo obrigatório' }).int().positive(),
   tokenPagamento: z.string().min(3).max(100).optional(),
@@ -155,7 +150,6 @@ export const webhookSchema = z.object({
   motivo: z.string().max(200).optional(),
 });
 
-// ------------------------------------------------------------------ Promoções / Relatórios / Auditoria
 export const promocaoSchema = z.object({
   codigo: z.string().trim().min(3).max(30).regex(/^[A-Za-z0-9_-]+$/, 'Use letras, números, _ ou -'),
   descricao: z.string().min(3).max(200),

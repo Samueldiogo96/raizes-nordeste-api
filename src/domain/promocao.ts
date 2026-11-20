@@ -1,9 +1,8 @@
 import { AppError } from './errors';
 
 /**
- * Regras de promoções/campanhas.
- * Uma promoção pode ser restrita a uma unidade e/ou a um canal, tem período
- * de vigência e valor mínimo de pedido. Apenas 1 promoção por pedido.
+ * Uma promoção pode valer só para uma unidade ou canal, tem período de
+ * vigência e valor mínimo. Cada pedido aceita uma promoção.
  */
 export interface PromocaoRegra {
   codigo: string;

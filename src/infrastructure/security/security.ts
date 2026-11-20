@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { Perfil } from '../../domain/enums';
 import { config } from '../config';
 
-/** Custo do bcrypt: 10 rounds ≈ 60–100 ms por hash — dificulta força bruta sem pesar no login. */
+/** 10 rounds de bcrypt: lento contra força bruta, rápido no login. */
 const BCRYPT_ROUNDS = 10;
 
 export const senhas = {
@@ -19,7 +19,7 @@ export interface TokenPayload {
 
 export const tokens = {
   gerar(payload: TokenPayload): string {
-    // O token carrega apenas id, perfil e unidade: nenhum dado pessoal (LGPD - minimização).
+    // O token leva só id, perfil e unidade, sem dados pessoais.
     return jwt.sign({ perfil: payload.perfil, unidadeId: payload.unidadeId }, config.jwtSecret, {
       subject: String(payload.sub),
       expiresIn: config.jwtExpiresIn,

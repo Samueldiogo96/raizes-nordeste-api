@@ -36,8 +36,7 @@ export class FidelidadeService {
     return { data, meta: metaPaginacao(page, limit, total) };
   }
 
-  // ------------------------------------------------------------ usados pelos fluxos de pedido/pagamento
-  /** Credita pontos após pagamento aprovado (somente com consentimento vigente). */
+  /** Credita pontos após pagamento aprovado, se houver consentimento. */
   static async creditarPorPagamento(tx: Tx, clienteId: number | null, pedidoId: number, totalPagoCentavos: number) {
     if (!clienteId) return 0;
     if (!(await temConsentimento(tx, clienteId, 'FIDELIDADE'))) return 0;
@@ -58,7 +57,7 @@ export class FidelidadeService {
     await tx.transacaoPontos.create({ data: { contaId: conta.id, tipo: 'RESGATE', pontos: -pontos, pedidoId, descricao: `Resgate no pedido #${pedidoId}` } });
   }
 
-  /** No cancelamento: devolve pontos resgatados e retira pontos ganhos com o pedido. */
+  /** Cancelamento: devolve os pontos usados e retira os ganhos. */
   static async estornarPorCancelamento(tx: Tx, clienteId: number | null, pedidoId: number) {
     if (!clienteId) return;
     const conta = await tx.contaFidelidade.findUnique({ where: { usuarioId: clienteId } });

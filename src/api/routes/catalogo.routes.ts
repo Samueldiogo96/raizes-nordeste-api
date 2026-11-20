@@ -10,7 +10,6 @@ export const unidadesRouter = Router();
 export const produtosRouter = Router();
 export const estoqueRouter = Router();
 
-// ---------------------------------------------------------------- /unidades
 unidadesRouter.get('/', validar({ query: listarUnidadesQuery }), h(async (req, res) => {
   res.json(await services.unidades.listar(q(req)));
 }));
@@ -23,7 +22,7 @@ unidadesRouter.post('/', autenticar, autorizar('ADMIN'), validar({ body: unidade
   res.status(201).json(await services.unidades.criar(ctx(req), req.body));
 }));
 
-/** Cardápio da unidade — público (App, Web, Totem consultam sem login). */
+/** Cardápio público, sem login. */
 unidadesRouter.get('/:id/cardapio', validar({ params: idParam, query: cardapioQuery }), h(async (req, res) => {
   res.json(await services.unidades.cardapio(Number(req.params.id), q(req)));
 }));
@@ -38,7 +37,6 @@ unidadesRouter.get('/:id/estoque', autenticar, autorizar('ATENDENTE', 'COZINHA',
     res.json(await services.estoque.saldoPorUnidade(ctx(req), Number(req.params.id), q(req)));
   }));
 
-// ---------------------------------------------------------------- /produtos
 produtosRouter.get('/', validar({ query: listarProdutosQuery }), h(async (req, res) => {
   res.json(await services.produtos.listar(q(req)));
 }));
@@ -55,7 +53,6 @@ produtosRouter.patch('/:id', autenticar, autorizar('ADMIN'), validar({ params: i
   res.json(await services.produtos.atualizar(ctx(req), Number(req.params.id), req.body));
 }));
 
-// ---------------------------------------------------------------- /estoque
 estoqueRouter.use(autenticar, autorizar('GERENTE', 'ADMIN'));
 
 estoqueRouter.post('/movimentacoes', validar({ body: movimentacaoSchema }), h(async (req, res) => {

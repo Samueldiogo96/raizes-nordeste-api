@@ -4,8 +4,8 @@ import { logger } from '../logger';
 
 /**
  * Grava a trilha de auditoria na tabela audit_logs.
- * Quando recebe uma transação (tx), o registro é gravado na MESMA transação da
- * operação de negócio: se a operação falhar, o log não fica "órfão", e vice-versa.
+ * Se receber uma transação, grava junto com a operação:
+ * se a operação falhar, o log também não fica.
  */
 export class PrismaAuditLogger implements AuditLogger {
   async registrar(ctx: Contexto | null, r: RegistroAuditoria, tx?: unknown): Promise<void> {

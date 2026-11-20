@@ -22,12 +22,12 @@ export function criarApp() {
   app.use(cors());
   app.use(express.json({ limit: '100kb' }));
 
-  // Documentação OpenAPI (contrato real da API)
+  // Swagger
   const spec = YAML.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'docs', 'openapi.yaml'), 'utf8'));
   app.get('/openapi.json', (_req, res) => res.json(spec));
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(spec, { customSiteTitle: 'Raízes do Nordeste — API' }));
 
-  // Health check (usado por load balancer/orquestrador para alta disponibilidade)
+  // Usado pelo balanceador para saber se a API está no ar
   app.get('/health', async (_req, res) => {
     try {
       await prisma.$queryRaw`SELECT 1`;

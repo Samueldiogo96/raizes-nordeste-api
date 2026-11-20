@@ -15,7 +15,6 @@ const chaveIdempotencia = (valor: string | undefined) => {
   return valor;
 };
 
-// ---------------------------------------------------------------- /pedidos
 pedidosRouter.use(autenticar);
 
 pedidosRouter.post('/', autorizar('CLIENTE', 'ATENDENTE', 'GERENTE', 'ADMIN'), validar({ body: criarPedidoSchema }), h(async (req, res) => {
@@ -23,7 +22,7 @@ pedidosRouter.post('/', autorizar('CLIENTE', 'ATENDENTE', 'GERENTE', 'ADMIN'), v
   res.status(r.reaproveitado ? 200 : 201).location(`/pedidos/${r.pedido.pedidoId}`).json(r.pedido);
 }));
 
-/** Listagem com filtros (ex.: ?canalPedido=TOTEM&status=AGUARDANDO_PAGAMENTO&page=1&limit=10). */
+/** Filtros: canalPedido, status, page, limit. */
 pedidosRouter.get('/', validar({ query: listarPedidosQuery }), h(async (req, res) => {
   res.json(await services.pedidos.listar(ctx(req), q(req)));
 }));
@@ -40,8 +39,7 @@ pedidosRouter.post('/:id/cancelar', autorizar('CLIENTE', 'GERENTE', 'ADMIN'), va
   res.json(await services.pedidos.cancelar(ctx(req), Number(req.params.id), req.body.motivo));
 }));
 
-// ---------------------------------------------------------------- /pagamentos
-/** Webhook do provedor (sem JWT; autenticado pelo header X-Webhook-Secret). */
+/** Webhook do gateway: sem JWT, autenticado por X-Webhook-Secret. */
 pagamentosRouter.post('/webhook', validar({ body: webhookSchema }), h(async (req, res) => {
   res.json(await services.pagamentos.processarWebhook(req.header('x-webhook-secret'), req.body));
 }));

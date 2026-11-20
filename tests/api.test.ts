@@ -1,7 +1,6 @@
 /**
- * Testes de INTEGRAÇÃO da API (HTTP → aplicação → banco SQLite de teste).
- * Banco isolado: prisma/test.db, recriado (migrations + seed) antes da suíte.
- * Os IDs (T01, T02...) correspondem ao Plano de Testes do documento e à coleção Postman.
+ * Testes de integração da API com um banco SQLite separado (prisma/test.db),
+ * recriado antes da suíte. Os IDs (T01, T02...) seguem o plano de testes.
  */
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = 'file:./test.db';
@@ -27,7 +26,7 @@ async function login(email: string) {
 }
 const auth = (perfil: string) => ({ Authorization: `Bearer ${tokens[perfil]}` });
 
-/** Garante que o corpo segue o padrão único de erro do contrato. */
+/** Confere se o corpo segue o formato padrão de erro. */
 function assertErroPadrao(body: Record<string, unknown>, codigo: string) {
   assert.equal(body.error, codigo);
   assert.equal(typeof body.message, 'string');

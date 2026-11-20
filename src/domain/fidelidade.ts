@@ -1,12 +1,11 @@
 import { Erros } from './errors';
 
 /**
- * Regras do programa de fidelização.
- * - Acúmulo: N pontos por real pago (padrão 1 ponto/R$), arredondado para baixo,
- *   creditados SOMENTE após pagamento aprovado e SOMENTE com consentimento FIDELIDADE ativo.
- * - Resgate: cada ponto vale R$ X (padrão R$ 0,05 → 100 pontos = R$ 5,00),
- *   limitado a 50% do valor do pedido (protege a margem da unidade).
- * - Cancelamento: pontos resgatados voltam; pontos acumulados pelo pedido são estornados.
+ * Fidelidade:
+ * - acúmulo: pontos por real pago (padrão 1 por R$), só após pagamento aprovado
+ *   e com consentimento de fidelidade ativo;
+ * - resgate: cada ponto vale R$ 0,05 por padrão, até 50% do pedido;
+ * - cancelamento: devolve os pontos usados e retira os ganhos.
  */
 export const LIMITE_RESGATE_PERCENTUAL = 0.5;
 

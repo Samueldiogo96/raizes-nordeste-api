@@ -1,6 +1,6 @@
 /**
- * Enumerações do domínio. São a "fonte da verdade" dos valores aceitos
- * (o SQLite não tem ENUM nativo, então a validação acontece aqui e na API).
+ * Valores aceitos em cada campo. O SQLite não tem ENUM,
+ * então a validação fica aqui e na API.
  */
 
 export const CANAIS_PEDIDO = ['APP', 'TOTEM', 'BALCAO', 'PICKUP', 'WEB'] as const;
@@ -47,5 +47,5 @@ export type FinalidadeConsentimento = (typeof FINALIDADES_CONSENTIMENTO)[number]
 export const TIPOS_PROMOCAO = ['PERCENTUAL', 'VALOR_FIXO'] as const;
 export type TipoPromocao = (typeof TIPOS_PROMOCAO)[number];
 
-/** Versão vigente do termo de consentimento (LGPD). */
+/** Versão atual do termo de consentimento. */
 export const VERSAO_TERMO_ATUAL = '2026.1';
